@@ -2,23 +2,20 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/dchest/uniuri"
-	"google.golang.org/api/idtoken"
-	goauth2 "google.golang.org/api/oauth2/v2"
-	"google.golang.org/api/option"
 )
 
 const (
-	emailContextKey          = "email"
-	profilePictureContextKey = "profile_pic"
-	nameContextKey           = "name"
-	firstNameContextKey      = "first_name"
-	sessionContextKey        = "session"
-	stateLength              = 64
+	emailContextKey     = "email"
+	nameContextKey      = "name"
+	firstNameContextKey = "first_name"
+	sessionContextKey   = "session"
+	stateLength         = 64
 )
 
 var emptySessionCookie = &http.Cookie{
@@ -74,51 +71,6 @@ func (s *Server) ValidLoginMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func (s *Server) Login() E {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		session, err := s.sessions.New(r, "session")
-		if err != nil {
-			s.logger.Errorw("got invalid session on login",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"err", err,
-			)
-			http.SetCookie(w, emptySessionCookie)
-			http.Redirect(w, r, s.baseURL+"api/login", http.StatusTemporaryRedirect)
-			return nil
-		}
-
-		token := r.FormValue("idtoken")
-		payload, err := idtoken.Validate(r.Context(), token, os.Getenv("QUEUE_OAUTH2_CLIENT_ID"))
-		if err != nil {
-			s.logger.Warnw("failed to validate token",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"err", err,
-			)
-			return StatusError{
-				http.StatusUnauthorized,
-				"Something doesn't look quite right with your login.",
-			}
-		}
-
-		email, ok := payload.Claims["email"].(string)
-		if !ok {
-			s.logger.Errorw("failed to get email from validated token",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"err", err,
-			)
-			return err
-		}
-
-		s.logger.Infow("processed login",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"email", email,
-		)
-
-		session.Values["email"] = email
-		return s.sessions.Save(r, w, session)
-	}
 }
 
 func (s *Server) OAuth2LoginLink() E {
@@ -179,20 +131,24 @@ func (s *Server) OAuth2Callback() E {
 			return err
 		}
 
-		service, err := goauth2.NewService(r.Context(), option.WithTokenSource(s.oauthConfig.TokenSource(r.Context(), token)))
+		client := s.oauthConfig.Client(r.Context(), token)
+		rawInfo, err := client.Get(s.oidcProvider.UserInfoEndpoint())
 		if err != nil {
-			l.Errorw("failed to set up OAuth2 service", "err", err)
+			l.Errorw("failed to get user info", "err", err)
 			return err
 		}
 
-		info, err := service.Userinfo.V2.Me.Get().Do()
-		if err != nil {
-			l.Errorw("failed to fetch user info", "err", err)
+		var info struct {
+			Email     string `json:"email"`
+			Name      string `json:"name"`
+			GivenName string `json:"given_name"`
+		}
+		if err := json.NewDecoder(rawInfo.Body).Decode(&info); err != nil {
+			l.Errorw("failed to decode user info", "err", err)
 			return err
 		}
 
 		session.Values["email"] = info.Email
-		session.Values["profile_pic"] = info.Picture
 		session.Values["name"] = info.Name
 		session.Values["first_name"] = info.GivenName
 		s.sessions.Save(r, w, session)
@@ -258,16 +214,14 @@ func (s *Server) GetCurrentUserInfo(gi getUserInfo) E {
 		// but is actually not horrible!
 		name, _ := r.Context().Value(nameContextKey).(string)
 		firstName, _ := r.Context().Value(firstNameContextKey).(string)
-		profilePicture, _ := r.Context().Value(profilePictureContextKey).(string)
 
 		resp := struct {
-			Email          string   `json:"email"`
-			SiteAdmin      bool     `json:"site_admin"`
-			AdminCourses   []string `json:"admin_courses"`
-			Name           string   `json:"name"`
-			FirstName      string   `json:"first_name"`
-			ProfilePicture string   `json:"profile_pic,omitempty"`
-		}{email, admin, courses, name, firstName, profilePicture}
+			Email        string   `json:"email"`
+			SiteAdmin    bool     `json:"site_admin"`
+			AdminCourses []string `json:"admin_courses"`
+			Name         string   `json:"name"`
+			FirstName    string   `json:"first_name"`
+		}{email, admin, courses, name, firstName}
 
 		return s.sendResponse(http.StatusOK, resp, w, r)
 	}

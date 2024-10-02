@@ -95,12 +95,6 @@ func (s *Server) sessionRetriever(next http.Handler) http.Handler {
 			return
 		}
 
-		profilePicture, ok := session.Values["profile_pic"].(string)
-		if !ok {
-			next.ServeHTTP(w, r)
-			return
-		}
-
 		name, ok := session.Values["name"].(string)
 		if !ok {
 			next.ServeHTTP(w, r)
@@ -114,7 +108,6 @@ func (s *Server) sessionRetriever(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), emailContextKey, email)
-		ctx = context.WithValue(ctx, profilePictureContextKey, profilePicture)
 		ctx = context.WithValue(ctx, nameContextKey, name)
 		ctx = context.WithValue(ctx, firstNameContextKey, firstName)
 		ctx = context.WithValue(ctx, sessionContextKey, session.Values)

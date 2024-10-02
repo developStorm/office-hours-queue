@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/pprof"
@@ -8,10 +9,10 @@ import (
 
 	"github.com/CarsonHoffman/office-hours-queue/server/api"
 	"github.com/CarsonHoffman/office-hours-queue/server/db"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 func main() {
@@ -28,12 +29,17 @@ func main() {
 		l.Fatalw("failed to load OAuth2 client secret file", "err", err)
 	}
 
+	provider, err := oidc.NewProvider(context.Background(), os.Getenv("QUEUE_OIDC_ISSUER_URL"))
+	if err != nil {
+		l.Fatalw("failed to create OIDC provider", "err", err)
+	}
+
 	config := oauth2.Config{
-		Endpoint:     google.Endpoint,
+		Endpoint:     provider.Endpoint(),
 		ClientID:     os.Getenv("QUEUE_OAUTH2_CLIENT_ID"),
 		ClientSecret: string(oauthClientSecret),
 		RedirectURL:  os.Getenv("QUEUE_OAUTH2_REDIRECT_URI"),
-		Scopes:       []string{"openid", "email", "profile"},
+		Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
 	}
 
 	db, err := db.New(os.Getenv("QUEUE_DB_URL"), os.Getenv("QUEUE_DB_DATABASE"), os.Getenv("QUEUE_DB_USERNAME"), string(password))
@@ -41,7 +47,7 @@ func main() {
 		l.Fatalw("failed to set up database", "err", err)
 	}
 
-	s := api.New(db, l, db.DB.DB, config)
+	s := api.New(db, l, db.DB.DB, provider, config)
 
 	r := chi.NewRouter()
 	r.Mount("/", s)

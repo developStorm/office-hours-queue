@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   queue:
     image: office-hours-queue
@@ -10,7 +8,7 @@ services:
       - db
       - logging
     ports:
-      - '127.0.0.1:6060:6060'
+      - "127.0.0.1:6060:6060"
     depends_on:
       - caddy
       - db
@@ -21,17 +19,18 @@ services:
       - oauth2_client_secret
       - metrics_password
     environment:
-      TZ: America/Detroit
+      TZ: America/Los_Angeles
       QUEUE_BASE_URL: "/"
       QUEUE_DB_URL: db
       QUEUE_DB_DATABASE: queue
       QUEUE_DB_USERNAME: queue
       QUEUE_DB_PASSWORD_FILE: /run/secrets/postgres_password
       QUEUE_SESSIONS_KEY_FILE: /run/secrets/sessions_key
-      QUEUE_OAUTH2_CLIENT_ID: 845191182055-up8bv3ff7bn418h0avfouaim0upho4h8.apps.googleusercontent.com
+      QUEUE_OIDC_ISSUER_URL: "https://login.stanford.edu"
+      QUEUE_OAUTH2_CLIENT_ID: w-4a9ac8bf2c5afa
       QUEUE_OAUTH2_CLIENT_SECRET_FILE: /run/secrets/oauth2_client_secret
       QUEUE_OAUTH2_REDIRECT_URI: "https://lvh.me:8080/api/oauth2callback"
-      QUEUE_VALID_DOMAIN: umich.edu
+      QUEUE_VALID_DOMAIN: stanford.edu
       USE_SECURE_COOKIES: "true"
       METRICS_PASSWORD_FILE: /run/secrets/metrics_password
     logging:
@@ -73,7 +72,7 @@ services:
     image: docker.elastic.co/logstash/logstash:7.16.2
     restart: always
     volumes:
-      - './syslog-input.conf:/usr/share/logstash/pipeline/03-syslog-input.conf'
+      - "./syslog-input.conf:/usr/share/logstash/pipeline/03-syslog-input.conf"
     networks:
       - logging
     ports:

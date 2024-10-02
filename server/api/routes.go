@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/antonlindstrom/pgstore"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/cskr/pubsub"
 	"github.com/go-chi/chi"
 	"github.com/gorilla/sessions"
@@ -23,6 +24,7 @@ type Server struct {
 	sessions        *pgstore.PGStore
 	ps              *pubsub.PubSub
 	oauthConfig     oauth2.Config
+	oidcProvider    *oidc.Provider
 	baseURL         string
 	metricsPassword string
 
@@ -97,7 +99,7 @@ type queueStore interface {
 	removeAppointmentSignup
 }
 
-func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oauthConfig oauth2.Config) *Server {
+func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcProvider *oidc.Provider, oauthConfig oauth2.Config) *Server {
 	var s Server
 	s.websocketCount = make(map[ksuid.KSUID]int)
 	s.websocketCountByEmail = make(map[ksuid.KSUID]map[string]int)
@@ -134,6 +136,7 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oauthCo
 	s.ps = pubsub.New(5)
 
 	s.oauthConfig = oauthConfig
+	s.oidcProvider = oidcProvider
 
 	s.baseURL = os.Getenv("QUEUE_BASE_URL")
 
@@ -343,9 +346,6 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oauthCo
 			})
 		})
 	})
-
-	// Login handler (takes Google idtoken, sets up session)
-	s.Method("POST", "/login", s.Login())
 
 	s.Method("GET", "/oauth2login", s.OAuth2LoginLink())
 
