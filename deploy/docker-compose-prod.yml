@@ -98,6 +98,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile
+      - caddy_data:/data
       - ./secrets/kibana.auth:/kibana.auth
       - ../public:/public
       - ../frontend/dist:/dist
@@ -118,8 +119,7 @@ services:
         syslog-address: tcp://127.0.0.1:5000
 
 volumes:
-  db:
-  elastic:
+  caddy_data:
 
 networks:
   http:
