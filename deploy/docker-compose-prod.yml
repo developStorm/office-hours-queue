@@ -2,7 +2,7 @@ services:
   queue:
     image: office-hours-queue
     build: ../server
-    restart: always
+    restart: unless-stopped
     networks:
       - http
       - db
@@ -39,7 +39,7 @@ services:
         syslog-address: tcp://127.0.0.1:5000
   db:
     image: postgres:13.5
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -54,8 +54,8 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: queue
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
-    restart: always
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    restart: unless-stopped
     volumes:
       - ./volumes/elastic:/usr/share/elasticsearch/data
     networks:
@@ -63,23 +63,29 @@ services:
     environment:
       - bootstrap.memory_lock=true
       - discovery.type=single-node
+      - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
         hard: -1
   logstash:
-    image: docker.elastic.co/logstash/logstash:7.16.2
-    restart: always
+    image: docker.elastic.co/logstash/logstash:8.15.2
+    restart: unless-stopped
     volumes:
       - "./syslog-input.conf:/usr/share/logstash/pipeline/03-syslog-input.conf"
     networks:
       - logging
     ports:
       - "127.0.0.1:5000:5000"
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.16.2
-    restart: always
+    image: docker.elastic.co/kibana/kibana:8.15.2
+    restart: unless-stopped
     volumes:
       - ./kibana.yml:/usr/share/kibana/config/kibana.yml
     networks:
@@ -89,7 +95,7 @@ services:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
   caddy:
     image: caddy:2
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile
       - ./secrets/kibana.auth:/kibana.auth
