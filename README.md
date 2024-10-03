@@ -24,7 +24,7 @@ Next, set up the password for the database user. Note the `-n` option, which pre
 $ echo -n "goodpassword" > deploy/secrets/postgres_password
 ```
 
-Take your client ID from your Google OAuth2 application credentials, and insert the value into `QUEUE_OAUTH2_CLIENT_ID` in `deploy/docker-compose-dev.yml` or `deploy/docker-compose-prod.yml` depending on your environment (more on that later). You'll also want to insert the client secret in `deploy/secrets/oauth2_client_secret`.
+`cp deploy/env.example deploy/.env`, then filling out the `.env` file with your OIDC info. You'll also want to insert the client secret in `deploy/secrets/oauth2_client_secret`.
 
 Finally, the queue needs a password with which it controls access to the `/api/metrics` endpoint. Generate a password with:
 
@@ -38,12 +38,11 @@ To enable certain features like notifications, browsers force the use of HTTPS. 
 
 Finally, ensure `node` is installed on your system, navigate to the `frontend` directory, and run `npm install && npm run build`. I'd like to automate this in the future, but we're not directly building it into a container, which makes it a tad difficult. On the plus side, if any changes are made to the JS, another run of `npm run build` will rebuild the bundle and make it immediately available without a container restart.
 
-If you're looking to run a dev environment, that's it! Run `docker-compose -f deploy/docker-compose-dev.yml up -d`, and you're in business (you *might* need to restart the containers the first time you spin them up due to a race condition between the initialization of the database and the application, but once the database is initialized on the first run you shouldn't run into that again). Go to `https://lvh.me:8080` (`lvh.me` always resolves to localhost, but Google OAuth2 requires a domain), and you have a queue! To see the Kibana dashboard, go to `https://lvh.me:8080/kibana`. The default username and password are both `dev`.
-
+If you're looking to run a dev environment, that's it! Run `docker-compose -f deploy/docker-compose-dev.yml up -d`, and you're in business (you _might_ need to restart the containers the first time you spin them up due to a race condition between the initialization of the database and the application, but once the database is initialized on the first run you shouldn't run into that again). Go to `https://lvh.me:8080` (`lvh.me` always resolves to localhost, but Google OAuth2 requires a domain), and you have a queue! To see the Kibana dashboard, go to `https://lvh.me:8080/kibana`. The default username and password are both `dev`.
 
 ### Production
 
-There are a few more steps involved for deploying the production environment. First, go to `deploy/Caddyfile.prod` and change `domain_here` to your domain. When executed, Caddy will automatically fetch TLS certificates for the domain and keep them renewed through Let's Encrypt. Next, set up a user for the Kibana instance: change `username_here` to a username, and `password_hash_here` to a password hash obtained via `caddy hash-password` (instructions for installing Caddy can be found [here](https://caddyserver.com/docs/download); this doesn't need to be installed in the environment. The hash can be obtained anywhere).
+There are a few more steps involved for deploying the production environment. When executed, Caddy will automatically fetch TLS certificates for the domain and keep them renewed through Let's Encrypt. Next, set up a user for the Kibana instance: change `username_here` to a username, and `password_hash_here` to a password hash obtained via `caddy hash-password` (instructions for installing Caddy can be found [here](https://caddyserver.com/docs/download); this doesn't need to be installed in the environment. The hash can be obtained anywhere).
 
 The application can now be started with `docker-compose -f deploy/docker-compose-prod.yml up -d`.
 

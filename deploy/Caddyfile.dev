@@ -1,29 +1,29 @@
-lvh.me
+lvh.me {
+	tls internal
 
-tls /data/lvh.me.pem /data/lvh.me-key.pem
+	encode gzip
 
-encode gzip
-
-basicauth /kibana* {
-	dev JDJhJDE0JE1wOXZHWHdDald1LmhCSWFYaGZLdU9IdTN3bHprSmhWVllPbEZtbnMzNndTYlRyL1dTdXZT
-}
-
-route {
-	route /kibana* {
-		uri strip_prefix /kibana
-		reverse_proxy kibana:5601
+	basic_auth /kibana* {
+		dev JDJhJDE0JE1wOXZHWHdDald1LmhCSWFYaGZLdU9IdTN3bHprSmhWVllPbEZtbnMzNndTYlRyL1dTdXZT
 	}
 
-	route /api/* {
-		uri strip_prefix /api
-		reverse_proxy queue:8080
-	}
+	route {
+		route /kibana* {
+			uri strip_prefix /kibana
+			reverse_proxy kibana:5601
+		}
 
-    rewrite /queues/* index.html
-	rewrite /admin index.html
+		route /api/* {
+			uri strip_prefix /api
+			reverse_proxy queue:8080
+		}
 
-	file_server {
-		root /dist
-		index index.html
+		rewrite /queues/* index.html
+		rewrite /admin index.html
+
+		file_server {
+			root /dist
+			index index.html
+		}
 	}
 }

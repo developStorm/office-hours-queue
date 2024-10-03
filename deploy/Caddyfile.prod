@@ -1,39 +1,38 @@
-domain_here
+{$QUEUE_DOMAIN} {
+	encode gzip
 
-encode gzip
-
-basicauth /kibana* {
-	import /kibana.auth
-}
-
-@cors {
-	method OPTIONS
-	path /api/*
-}
-
-route {
-	route /kibana* {
-		uri strip_prefix /kibana
-		reverse_proxy kibana:5601
+	basic_auth /kibana* {
+		import /kibana.auth
 	}
 
-	route /api/* {
-		header Access-Control-Allow-Origin "https://engr101staff.github.io"
-		route @cors {
-			header Access-Control-Allow-Headers "*"
-			header Access-Control-Allow-Methods "GET"
-			header Access-Control-Max-Age "86400"
-			respond 200
+	@cors {
+		method OPTIONS
+		path /api/*
+	}
+
+	route {
+		route /kibana* {
+			uri strip_prefix /kibana
+			reverse_proxy kibana:5601
 		}
-		uri strip_prefix /api
-		reverse_proxy queue:8080
-	}
 
-	rewrite /queues/* index.html
-	rewrite /admin index.html
+		route /api/* {
+			route @cors {
+				header Access-Control-Allow-Headers "*"
+				header Access-Control-Allow-Methods "GET"
+				header Access-Control-Max-Age "86400"
+				respond 200
+			}
+			uri strip_prefix /api
+			reverse_proxy queue:8080
+		}
 
-	file_server {
-		root /dist
-		index index.html
+		rewrite /queues/* index.html
+		rewrite /admin index.html
+
+		file_server {
+			root /dist
+			index index.html
+		}
 	}
 }

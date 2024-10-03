@@ -26,11 +26,11 @@ services:
       QUEUE_DB_USERNAME: queue
       QUEUE_DB_PASSWORD_FILE: /run/secrets/postgres_password
       QUEUE_SESSIONS_KEY_FILE: /run/secrets/sessions_key
-      QUEUE_OIDC_ISSUER_URL: "https://login.stanford.edu"
-      QUEUE_OAUTH2_CLIENT_ID: w-4a9ac8bf2c5afa
+      QUEUE_OIDC_ISSUER_URL: ${QUEUE_OIDC_ISSUER_URL:?error}
+      QUEUE_OAUTH2_CLIENT_ID: ${QUEUE_OAUTH2_CLIENT_ID:?error}
       QUEUE_OAUTH2_CLIENT_SECRET_FILE: /run/secrets/oauth2_client_secret
-      QUEUE_OAUTH2_REDIRECT_URI: "https://lvh.me:8080/api/oauth2callback"
-      QUEUE_VALID_DOMAIN: stanford.edu
+      QUEUE_OAUTH2_REDIRECT_URI: "https://${QUEUE_DOMAIN:?error}/api/oauth2callback"
+      QUEUE_VALID_DOMAIN: ${QUEUE_VALID_DOMAIN:?error}
       USE_SECURE_COOKIES: "true"
       METRICS_PASSWORD_FILE: /run/secrets/metrics_password
     logging:
