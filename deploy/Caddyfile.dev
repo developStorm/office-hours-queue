@@ -26,4 +26,9 @@ lvh.me {
 			index index.html
 		}
 	}
+
+	log {
+		output stdout
+		format json
+	}
 }
