@@ -14,7 +14,7 @@
 										$router.push('/');
 									}
 								"
-								>EECS Office Hours</a
+								>CS Office Hours</a
 							>
 						</h1>
 					</div>

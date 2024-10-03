@@ -12,7 +12,7 @@ const routes: Array<RouteConfig> = [
 		name: 'Home',
 		component: Home,
 		meta: {
-			title: 'EECS Office Hours',
+			title: 'CS Office Hours',
 		},
 	},
 	{

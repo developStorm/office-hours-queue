@@ -13,7 +13,7 @@
 				size="10x"
 				class="block"
 			/>
-			<h1 class="title block">Welcome to EECS Office Hours!</h1>
+			<h1 class="title block">Welcome to CS Office Hours!</h1>
 			<h2 class="subtitle" v-if="mobile">Select a course above to begin.</h2>
 			<h2 class="subtitle" v-else>Select a course on the left to begin.</h2>
 		</div>
