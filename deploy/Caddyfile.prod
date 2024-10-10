@@ -1,10 +1,6 @@
 {$QUEUE_DOMAIN} {
 	encode gzip
 
-	basic_auth /kibana* {
-		import /kibana.auth
-	}
-
 	@cors {
 		method OPTIONS
 		path /api/*
@@ -12,6 +8,10 @@
 
 	route {
 		route /kibana* {
+			forward_auth queue:8080 {
+				uri /users/@am-site-admin
+			}
+
 			uri strip_prefix /kibana
 			reverse_proxy kibana:5601
 		}

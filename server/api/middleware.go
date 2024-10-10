@@ -136,7 +136,7 @@ type siteAdmin interface {
 	SiteAdmin(ctx context.Context, email string) (bool, error)
 }
 
-func (s *Server) EnsureSiteAdmin(sa siteAdmin) func(http.Handler) http.Handler {
+func (s *Server) EnsureSiteAdmin(sa siteAdmin, shouldLog bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			email := r.Context().Value(emailContextKey).(string)
@@ -154,10 +154,13 @@ func (s *Server) EnsureSiteAdmin(sa siteAdmin) func(http.Handler) http.Handler {
 				return
 			}
 
-			s.logger.Infow("entering site admin context",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"email", email,
-			)
+			if shouldLog {
+				s.logger.Infow("entering site admin context",
+					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+					"email", email,
+				)
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

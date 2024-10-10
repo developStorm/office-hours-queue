@@ -73,6 +73,16 @@ func (s *Server) ValidLoginMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func (s *Server) FowardAuth() E {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		s.logger.Infow("forward auth passed",
+			"X-Forwarded-Uri", r.Header.Get("X-Forwarded-Uri"),
+			"email", r.Context().Value(emailContextKey).(string),
+		)
+		return s.sendResponse(http.StatusNoContent, nil, w, r)
+	}
+}
+
 func (s *Server) OAuth2LoginLink() E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		session, err := s.sessions.New(r, "session")

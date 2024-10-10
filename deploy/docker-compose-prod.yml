@@ -100,7 +100,6 @@ services:
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile
       - caddy_data:/data
-      - ./secrets/kibana.auth:/kibana.auth
       - ../public:/public
       - ../frontend/dist:/dist
     environment:

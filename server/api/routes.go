@@ -149,7 +149,7 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 		r.Method("GET", "/", s.GetCourses(q))
 
 		// Create course (course admin)
-		r.With(s.ValidLoginMiddleware, s.EnsureSiteAdmin(q)).Method("POST", "/", s.AddCourse(q))
+		r.With(s.ValidLoginMiddleware, s.EnsureSiteAdmin(q, true)).Method("POST", "/", s.AddCourse(q))
 
 		// Course by ID endpoints
 		r.Route("/{id:[a-zA-Z0-9]{27}}", func(r chi.Router) {
@@ -352,6 +352,8 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 	s.Method("GET", "/oauth2callback", s.OAuth2Callback())
 
 	s.Method("GET", "/logout", s.Logout())
+
+	s.With(s.ValidLoginMiddleware, s.EnsureSiteAdmin(q, false)).Method("GET", "/users/@am-site-admin", s.FowardAuth())
 
 	s.With(s.ValidLoginMiddleware).Method("GET", "/users/@me", s.GetCurrentUserInfo(q))
 

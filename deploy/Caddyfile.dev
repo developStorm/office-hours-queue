@@ -3,12 +3,12 @@ lvh.me {
 
 	encode gzip
 
-	basic_auth /kibana* {
-		dev JDJhJDE0JE1wOXZHWHdDald1LmhCSWFYaGZLdU9IdTN3bHprSmhWVllPbEZtbnMzNndTYlRyL1dTdXZT
-	}
-
 	route {
 		route /kibana* {
+			forward_auth queue:8080 {
+				uri /users/@am-site-admin
+			}
+
 			uri strip_prefix /kibana
 			reverse_proxy kibana:5601
 		}
