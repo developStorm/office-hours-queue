@@ -1,5 +1,5 @@
 <template>
-	<div>
+	<div class="is-min-height-100vh is-flex is-flex-direction-column">
 		<nav class="navbar has-shadow is-spaced">
 			<div class="container">
 				<div class="navbar-brand">
@@ -49,7 +49,7 @@
 								</div>
 								<div class="navbar-item">
 									<a
-										href="https://github.com/CarsonHoffman/office-hours-queue"
+										href="https://github.com/developStorm/office-hours-queue"
 										target="_blank"
 										class="no-link-color"
 									>
@@ -93,7 +93,7 @@
 				</div>
 			</div>
 		</nav>
-		<section class="section main-section">
+		<section class="section main-section is-flex-grow-1">
 			<div class="container">
 				<div class="columns" v-if="fetchedCourses">
 					<transition name="fade" mode="out-in">
@@ -183,8 +183,9 @@
 										</div>
 									</b-menu-list>
 								</b-menu>
-							</div></div
-					></transition>
+							</div>
+						</div>
+					</transition>
 					<div class="column">
 						<transition name="fade" mode="out-in">
 							<router-view
@@ -198,6 +199,9 @@
 				<b-loading :active="true" v-else></b-loading>
 			</div>
 		</section>
+		<footer class="footer" v-if="footerHtml">
+			<div class="content has-text-centered" v-html="footerHtml"></div>
+		</footer>
 	</div>
 </template>
 
@@ -264,6 +268,10 @@ export default class App extends Vue {
 				}
 				return a.shortName < b.shortName ? -1 : 1;
 			});
+	}
+
+	get footerHtml() {
+		return process.env.VUE_APP_FOOTER_HTML;
 	}
 
 	get admin() {
@@ -385,6 +393,8 @@ $colors: (
 	),
 );
 
+$footer-padding: 1.5rem 0.5rem;
+
 @import '~bulma';
 @import '~buefy/src/scss/buefy';
 
@@ -408,11 +418,16 @@ $colors: (
 .slide-fade-enter-active {
 	transition: all 0.3s ease;
 }
+
 .slide-fade-leave-active {
 	transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
 }
-.slide-fade-enter, .slide-fade-leave-to
-/* .slide-fade-leave-active below version 2.1.8 */ {
+
+.slide-fade-enter,
+.slide-fade-leave-to
+
+/* .slide-fade-leave-active below version 2.1.8 */
+	 {
 	transform: translateX(10px);
 	opacity: 0;
 }
@@ -449,6 +464,10 @@ $colors: (
 
 .hero-body {
 	padding: 3rem 2rem;
+}
+
+.is-min-height-100vh {
+	min-height: 100vh;
 }
 </style>
 
