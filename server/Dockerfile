@@ -1,4 +1,4 @@
-FROM golang:latest as builder
+FROM golang:1.23 AS builder
 
 LABEL maintainer="Carson Hoffman <hoffcar@umich.edu>"
 
@@ -12,7 +12,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o ./main .
 
-FROM alpine:latest
+FROM alpine:3
 
 RUN apk --no-cache add ca-certificates tzdata
 
