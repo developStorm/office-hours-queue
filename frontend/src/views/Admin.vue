@@ -102,7 +102,11 @@ export default class AdminPage extends Vue {
 		this.$buefy.modal.open({
 			parent: this,
 			component: CourseEdit,
-			props: { defaultShortName: '', defaultFullName: '', defaultAdmins: [] },
+			props: {
+				defaultShortName: '',
+				defaultFullName: '',
+				defaultAdmins: [this.$root.$data.userInfo.email],
+			},
 			events: {
 				saved: (short: string, full: string, admins: string[]) => {
 					fetch(process.env.BASE_URL + `api/courses`, {
