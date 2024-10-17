@@ -13,7 +13,11 @@
 					<b-input v-model="fullName" />
 				</b-field>
 				<b-field label="Course Admins">
-					<b-input type="textarea" v-model="adminsText" />
+					<b-input
+						style="min-width: 50vw;"
+						type="textarea"
+						v-model="adminsText"
+					/>
 				</b-field>
 			</div>
 		</section>
