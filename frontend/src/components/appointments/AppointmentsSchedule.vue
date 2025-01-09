@@ -128,7 +128,7 @@ export default class AppointmentsSchedule extends Vue {
 
 	// This choice of date is completely arbitrary; I just needed
 	// a base time of midnight off which we can add 30-minute intervals.
-	base: Moment = moment('2020-01-01T00:00:00-05:00');
+	base: Moment = moment.tz('2020-01-01T00:00:00', moment.tz.guess());
 
 	constructor() {
 		super();
