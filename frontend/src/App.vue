@@ -246,7 +246,7 @@ export default class App extends Vue {
 		}
 
 		// Stop jitter on page load
-		this.$root.$data.showCourses = !this.$route.path.includes('/queues/');
+		this.$root.$data.showCourses = !(this.$route.path.includes('/queues/') && window.innerWidth < 769);
 
 		this.restart();
 	}
@@ -284,7 +284,7 @@ export default class App extends Vue {
 	}
 
 	goToQueue(q: Queue) {
-		this.$root.$data.showCourses = false;
+		if (window.innerWidth < 769) this.$root.$data.showCourses = false;
 		this.$router.push('/queues/' + q.id);
 	}
 

@@ -90,7 +90,7 @@ export default class QueuePage extends Vue {
 	timeUpdater!: number;
 
 	created() {
-		this.$root.$data.showCourses = false;
+		this.$root.$data.showCourses = window.innerWidth >= 769;
 
 		if (this.queue === undefined) {
 			this.$buefy.toast.open({
