@@ -298,12 +298,12 @@ export default class OrderedQueue extends Queue {
 		return Math.floor(
 			(time
 				.clone()
-				.tz('America/New_York')
+				.tz(moment.tz.guess())
 				.hour() *
 				60 +
 				time
 					.clone()
-					.tz('America/New_York')
+					.tz(moment.tz.guess())
 					.minute()) /
 				30
 		);
@@ -314,7 +314,7 @@ export default class OrderedQueue extends Queue {
 		// for daylight savings purposes (if the half hour was usually at 10 AM,
 		// we do not want it to occur at 9 AM or 11 AM)
 		return moment()
-			.tz('America/New_York')
+			.tz(moment.tz.guess())
 			.startOf('day')
 			.hour(Math.floor(halfHour / 2))
 			.minute((halfHour % 2) * 30)

@@ -192,7 +192,7 @@ export class AppointmentsQueue extends Queue {
 						this.day(time),
 						time
 							.clone()
-							.tz('America/New_York')
+							.tz(moment.tz.guess())
 							.startOf('day'),
 						schedule['duration'],
 						schedule['padding'],
@@ -209,7 +209,7 @@ export class AppointmentsQueue extends Queue {
 	day(time: Moment) {
 		return time
 			.clone()
-			.tz('America/New_York')
+			.tz(moment.tz.guess())
 			.day();
 	}
 }
