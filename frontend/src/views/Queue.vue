@@ -66,6 +66,7 @@ import OrderedQueueDisplay from '@/components/ordered/OrderedQueue.vue';
 import AppointmentsQueueDisplay from '@/components/appointments/AppointmentsQueue.vue';
 import QueueManage from '@/components/admin/QueueManage.vue';
 import ErrorDialog from '@/util/ErrorDialog';
+import { DialogProgrammatic as Dialog } from 'buefy';
 
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faCog, faEthernet } from '@fortawesome/free-solid-svg-icons';
@@ -198,9 +199,31 @@ export default class QueuePage extends Vue {
 						type: this.queue.type,
 					},
 					events: {
-						configurationSaved: (newConfiguration: {
-							[index: string]: any;
-						}) => {
+						configurationSaved: (
+							newConfiguration: {
+								[index: string]: any;
+							},
+							promptsInput: string
+						) => {
+							if (promptsInput === '') promptsInput = '[]';
+
+							try {
+								const prompts = JSON.parse(promptsInput);
+								if (
+									!Array.isArray(prompts) ||
+									!prompts.every((p: any) => typeof p === 'string')
+								) {
+									throw new Error('Invalid prompt');
+								}
+								newConfiguration.prompts = prompts;
+							} catch (e) {
+								return Dialog.alert({
+									message:
+										'Custom prompts must be a valid JSON array of strings',
+									type: 'is-danger',
+								});
+							}
+
 							fetch(
 								process.env.BASE_URL +
 									`api/queues/${this.queue.id}/configuration`,

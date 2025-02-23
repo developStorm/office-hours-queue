@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/jmoiron/sqlx/types"
 	"github.com/segmentio/ksuid"
 )
 
@@ -33,16 +34,17 @@ type Queue struct {
 }
 
 type QueueConfiguration struct {
-	ID                  ksuid.KSUID `json:"id" db:"id"`
-	EnableLocationField bool        `json:"enable_location_field" db:"enable_location_field"`
-	PreventUnregistered bool        `json:"prevent_unregistered" db:"prevent_unregistered"`
-	PreventGroups       bool        `json:"prevent_groups" db:"prevent_groups"`
-	PreventGroupsBoost  bool        `json:"prevent_groups_boost" db:"prevent_groups_boost"`
-	PrioritizeNew       bool        `json:"prioritize_new" db:"prioritize_new"`
-	Cooldown            int         `json:"cooldown" db:"cooldown"`
-	Virtual             bool        `json:"virtual" db:"virtual"`
-	Scheduled           bool        `json:"scheduled" db:"scheduled"`
-	ManualOpen          bool        `json:"manual_open" db:"manual_open"`
+	ID                  ksuid.KSUID    `json:"id" db:"id"`
+	EnableLocationField bool           `json:"enable_location_field" db:"enable_location_field"`
+	PreventUnregistered bool           `json:"prevent_unregistered" db:"prevent_unregistered"`
+	PreventGroups       bool           `json:"prevent_groups" db:"prevent_groups"`
+	PreventGroupsBoost  bool           `json:"prevent_groups_boost" db:"prevent_groups_boost"`
+	PrioritizeNew       bool           `json:"prioritize_new" db:"prioritize_new"`
+	Cooldown            int            `json:"cooldown" db:"cooldown"`
+	Virtual             bool           `json:"virtual" db:"virtual"`
+	Scheduled           bool           `json:"scheduled" db:"scheduled"`
+	ManualOpen          bool           `json:"manual_open" db:"manual_open"`
+	Prompts             types.JSONText `json:"prompts" db:"prompts"`
 }
 
 type Announcement struct {

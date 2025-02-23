@@ -1,6 +1,21 @@
 <template>
 	<div>
-		<div class="field">
+		<template
+			v-if="
+				queue.config && queue.config.prompts && queue.config.prompts.length > 0
+			"
+		>
+			<div class="field" v-for="(prompt, i) in queue.config.prompts" :key="i">
+				<label class="label">{{ prompt }}</label>
+				<div class="control has-icons-left">
+					<input class="input" v-model="customResponses[i]" type="text" />
+					<span class="icon is-small is-left">
+						<font-awesome-icon icon="question" />
+					</span>
+				</div>
+			</div>
+		</template>
+		<div class="field" v-else>
 			<label class="label">Description</label>
 			<div class="control has-icons-left">
 				<input
@@ -104,14 +119,47 @@ library.add(
 export default class QueueSignup extends Vue {
 	description = '';
 	location = '';
+	customResponses: string[] = [];
 
 	@Prop({ required: true }) queue!: OrderedQueue;
 	@Prop({ required: true }) time!: Moment;
 
+	private hasDescWithPrompts(): boolean {
+		return Boolean(this.queue.config?.prompts?.length);
+	}
+
+	private descWithPromptsToDescription(): string {
+		return JSON.stringify(
+			Object.fromEntries(
+				this!.queue!.config!.prompts!.map((p, i) => [
+					p,
+					this.customResponses[i],
+				])
+			)
+		);
+	}
+
+	private descriptionToDescWithPrompts(description: string): string[] {
+		try {
+			const parsedDescription = JSON.parse(description || '{}');
+			return this!.queue!.config!.prompts!.map(
+				(prompt) => parsedDescription[prompt] || ''
+			);
+		} catch (e) {
+			return this!.queue!.config!.prompts!.map(() => '');
+		}
+	}
+
 	@Watch('myEntry')
 	myEntryUpdated(newEntry: QueueEntry | null) {
 		if (newEntry !== null) {
-			this.description = newEntry.description || '';
+			if (this.hasDescWithPrompts()) {
+				this.customResponses = this.descriptionToDescWithPrompts(
+					newEntry.description || ''
+				);
+			} else {
+				this.description = newEntry.description || '';
+			}
 			this.location = newEntry.location || '';
 		}
 	}
@@ -127,11 +175,16 @@ export default class QueueSignup extends Vue {
 		// parts of the expression return false on the first calculation,
 		// we aren't reactive on myEntry until one of the previous
 		// parts had a reactive update. This took way too long to figure out :(
+
+		const isValidDescription = this.hasDescWithPrompts()
+			? this.customResponses.every((r) => r.trim() !== '')
+			: this.description.trim() !== '';
+
 		return (
 			this.myEntry === null &&
 			this.$root.$data.loggedIn &&
 			this.queue.isOpen(this.time) &&
-			this.description.trim() !== '' &&
+			isValidDescription &&
 			(this.location.trim() !== '' || !this.queue.config?.enableLocationField)
 		);
 	}
@@ -146,10 +199,22 @@ export default class QueueSignup extends Vue {
 
 	get myEntryModified() {
 		const e = this.myEntry;
-		return (
-			e !== null &&
-			(e.description !== this.description || e.location !== this.location)
-		);
+		if (e === null) return false;
+
+		if (this.hasDescWithPrompts()) {
+			try {
+				const parsedDescription = JSON.parse(e.description || '{}');
+				return (
+					JSON.stringify(parsedDescription) !==
+						this.descWithPromptsToDescription() || e.location !== this.location
+				);
+			} catch (e) {
+				// If description is not valid JSON, consider it modified
+				return true;
+			}
+		}
+
+		return e.description !== this.description || e.location !== this.location;
 	}
 
 	signUp() {
@@ -172,10 +237,15 @@ export default class QueueSignup extends Vue {
 		const location = this.queue.config?.enableLocationField
 			? this.location
 			: '(disabled)';
+
+		const description = this.hasDescWithPrompts()
+			? this.descWithPromptsToDescription()
+			: this.description;
+
 		fetch(process.env.BASE_URL + `api/queues/${this.queue.id}/entries`, {
 			method: 'POST',
 			body: JSON.stringify({
-				description: this.description,
+				description,
 				location,
 			}),
 		}).then((res) => {
@@ -194,6 +264,10 @@ export default class QueueSignup extends Vue {
 	}
 
 	updateRequest() {
+		const description = this.hasDescWithPrompts()
+			? this.descWithPromptsToDescription()
+			: this.description;
+
 		if (this.myEntry !== null) {
 			fetch(
 				process.env.BASE_URL +
@@ -201,7 +275,7 @@ export default class QueueSignup extends Vue {
 				{
 					method: 'PUT',
 					body: JSON.stringify({
-						description: this.description,
+						description,
 						location: this.location,
 					}),
 				}

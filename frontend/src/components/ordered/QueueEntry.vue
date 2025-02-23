@@ -7,7 +7,7 @@
 						<div class="level-left">
 							<font-awesome-icon
 								icon="user"
-								class="mr-2 level-item"
+								class="mr-2 level-item mt-1"
 								fixed-width
 							/>
 							<span class="level-item stay-in-container">
@@ -20,7 +20,7 @@
 							<div class="level-left">
 								<font-awesome-icon
 									icon="at"
-									class="mr-2 level-item"
+									class="mr-2 level-item mt-1"
 									fixed-width
 								/>
 								<span class="level-item stay-in-container">{{
@@ -28,23 +28,43 @@
 								}}</span>
 							</div>
 						</div>
-						<div class="level icon-row is-mobile">
-							<div class="level-left">
-								<font-awesome-icon
-									icon="question"
-									class="mr-2 level-item"
-									fixed-width
-								/>
-								<span class="level-item stay-in-container">{{
-									entry.description
-								}}</span>
+						<template v-if="hasCustomPrompts">
+							<div
+								class="level icon-row is-mobile"
+								v-for="(reply, prompt) in promptResponses"
+								:key="prompt"
+							>
+								<div class="level-left">
+									<b-tooltip :label="prompt" position="is-right">
+										<font-awesome-icon
+											icon="question"
+											class="mr-2 level-item mt-1"
+											fixed-width
+										/>
+									</b-tooltip>
+									<span class="level-item stay-in-container">{{ reply }}</span>
+								</div>
 							</div>
-						</div>
+						</template>
+						<template v-else>
+							<div class="level icon-row is-mobile">
+								<div class="level-left">
+									<font-awesome-icon
+										icon="question"
+										class="mr-2 level-item mt-1"
+										fixed-width
+									/>
+									<span class="level-item stay-in-container">{{
+										entry.description
+									}}</span>
+								</div>
+							</div>
+						</template>
 						<div class="level icon-row is-mobile">
 							<div class="level-left">
 								<font-awesome-icon
 									:icon="queue.config.virtual ? 'link' : 'map-marker'"
-									class="mr-2 level-item"
+									class="mr-2 level-item mt-1"
 									fixed-width
 								/>
 								<p
@@ -63,7 +83,7 @@
 						<div class="level-left">
 							<font-awesome-icon
 								icon="clock"
-								class="mr-2 level-item"
+								class="mr-2 level-item mt-1"
 								fixed-width
 							/>
 							<b-tooltip :label="entry.tooltipTimestamp">
@@ -77,13 +97,13 @@
 						<div class="level-left">
 							<font-awesome-icon
 								icon="sort-numeric-up"
-								class="mr-2 level-item"
+								class="mr-2 level-item mt-1"
 								fixed-width
 								v-if="entry.priority > 0"
 							/>
 							<font-awesome-icon
 								icon="sort-numeric-down"
-								class="mr-2 level-item"
+								class="mr-2 level-item mt-1"
 								fixed-width
 								v-else
 							/>
@@ -97,7 +117,7 @@
 						<div class="level-left">
 							<font-awesome-icon
 								icon="times"
-								class="mr-2 level-item"
+								class="mr-2 level-item mt-1"
 								fixed-width
 							/>
 							<span class="level-item stay-in-container">{{
@@ -339,6 +359,30 @@ export default class QueueEntryDisplay extends Vue {
 		return this.entry.humanizedTimestamp(this.time.clone().add(5, 'second'));
 	}
 
+	get promptResponses(): { [key: string]: string } {
+		if (!this.entry.description) return {};
+
+		try {
+			const parsed = JSON.parse(this.entry.description);
+			if (typeof parsed === 'object' && parsed !== null) {
+				for (const key in parsed) {
+					if (typeof key !== 'string' || typeof parsed[key] !== 'string') {
+						return {};
+					}
+				}
+				return parsed;
+			}
+		} catch {
+			return {};
+		}
+
+		return {};
+	}
+
+	get hasCustomPrompts(): boolean {
+		return Object.keys(this.promptResponses).length > 0;
+	}
+
 	removeRequestRunning = false;
 	removeEntry() {
 		this.queue.personallyRemovedEntries.add(this.entry.id);
@@ -456,6 +500,7 @@ export default class QueueEntryDisplay extends Vue {
 
 .level-left {
 	flex-shrink: 1;
+	align-items: flex-start;
 }
 
 .stay-in-container {

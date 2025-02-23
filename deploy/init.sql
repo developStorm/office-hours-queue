@@ -171,6 +171,7 @@ CREATE TABLE public.queues (
     virtual boolean DEFAULT false NOT NULL,
     scheduled boolean DEFAULT false NOT NULL,
     manual_open boolean DEFAULT false NOT NULL,
+    prompts json DEFAULT '[]'::json NOT NULL,
     type text NOT NULL,
     name text NOT NULL
 );

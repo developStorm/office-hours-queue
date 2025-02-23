@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -507,6 +508,42 @@ type addQueueEntry interface {
 	canAddEntry
 	GetEntryPriority(ctx context.Context, queue ksuid.KSUID, email string) (int, error)
 	AddQueueEntry(context.Context, *QueueEntry) (*QueueEntry, error)
+	getQueueConfiguration
+}
+
+// validateQueueEntryDescription validates that:
+// - If prompts are configured, description must be valid JSON matching prompts
+// - If no prompts configured, description must not be JSON
+func validateQueueEntryDescription(description string, prompts []string) error {
+	var jsonData map[string]string
+
+	if err := json.Unmarshal([]byte(description), &jsonData); err == nil {
+		// Description is valid JSON
+		if len(prompts) == 0 {
+			return fmt.Errorf("oops, JSON description is not allowed")
+		}
+
+		if len(jsonData) != len(prompts) {
+			return fmt.Errorf("wrong number of prompt responses, expected %d got %d", len(prompts), len(jsonData))
+		}
+
+		// Verify all required prompts exist with non-empty values
+		for _, prompt := range prompts {
+			value, exists := jsonData[prompt]
+			if !exists || strings.TrimSpace(value) == "" {
+				return fmt.Errorf("empty response for prompt: %s", prompt)
+			}
+		}
+
+		return nil
+	}
+
+	// Not JSON - only allowed if no prompts configured
+	if len(prompts) > 0 {
+		return fmt.Errorf("hmm, we were expecting JSON here. Did you forget to fill out the sign-up form?")
+	}
+
+	return nil
 }
 
 func (s *Server) AddQueueEntry(ae addQueueEntry) E {
@@ -569,6 +606,27 @@ func (s *Server) AddQueueEntry(ae addQueueEntry) E {
 			}
 		}
 
+		// Validate description format if prompts are configured
+		config, err := ae.GetQueueConfiguration(r.Context(), q.ID)
+		if err != nil {
+			l.Errorw("failed to get queue configuration", "err", err)
+			return err
+		}
+
+		var prompts []string
+		if err := json.Unmarshal(config.Prompts, &prompts); err != nil {
+			l.Errorw("failed to unmarshal prompts", "err", err)
+			return err
+		}
+
+		if err := validateQueueEntryDescription(entry.Description, prompts); err != nil {
+			l.Warnw("invalid entry description", "err", err)
+			return StatusError{
+				http.StatusBadRequest,
+				err.Error(),
+			}
+		}
+
 		priority, err := ae.GetEntryPriority(r.Context(), q.ID, email)
 		if err != nil {
 			l.Errorw("failed to get entry priority", "err", err)
@@ -606,6 +664,7 @@ func (s *Server) AddQueueEntry(ae addQueueEntry) E {
 type updateQueueEntry interface {
 	getQueueEntry
 	UpdateQueueEntry(ctx context.Context, entry ksuid.KSUID, newEntry *QueueEntry) error
+	getQueueConfiguration
 }
 
 func (s *Server) UpdateQueueEntry(ue updateQueueEntry) E {
@@ -662,6 +721,27 @@ func (s *Server) UpdateQueueEntry(ue updateQueueEntry) E {
 			return StatusError{
 				http.StatusBadRequest,
 				"It looks like you left out some fields in the queue entry!",
+			}
+		}
+
+		// Validate description format if prompts are configured
+		config, err := ue.GetQueueConfiguration(r.Context(), q.ID)
+		if err != nil {
+			l.Errorw("failed to get queue configuration", "err", err)
+			return err
+		}
+
+		var prompts []string
+		if err := json.Unmarshal(config.Prompts, &prompts); err != nil {
+			l.Errorw("failed to unmarshal prompts", "err", err)
+			return err
+		}
+
+		if err := validateQueueEntryDescription(newEntry.Description, prompts); err != nil {
+			l.Warnw("invalid entry description", "err", err)
+			return StatusError{
+				http.StatusBadRequest,
+				err.Error(),
 			}
 		}
 
@@ -1199,6 +1279,37 @@ func (s *Server) UpdateQueueConfiguration(uc updateQueueConfiguration) E {
 			return StatusError{
 				http.StatusBadRequest,
 				"We couldn't read the configuration from the request body.",
+			}
+		}
+
+		// Validate prompt format
+		var prompts []string
+		if err := json.Unmarshal(config.Prompts, &prompts); err != nil {
+			s.logger.Warnw("failed to unmarshal prompts",
+				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				"queue_id", q.ID,
+				"err", err,
+			)
+			return StatusError{
+				http.StatusBadRequest,
+				"Invalid customized prompts format.",
+			}
+		}
+
+		// Check no duplicate prompts by compare length of prompts and set
+		promptSet := make(map[string]struct{})
+		for _, prompt := range prompts {
+			promptSet[prompt] = struct{}{}
+		}
+		if len(prompts) != len(promptSet) {
+			s.logger.Warnw("duplicate prompts",
+				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				"queue_id", q.ID,
+				"prompts", prompts,
+			)
+			return StatusError{
+				http.StatusBadRequest,
+				"Customized prompts contain duplicates.",
 			}
 		}
 

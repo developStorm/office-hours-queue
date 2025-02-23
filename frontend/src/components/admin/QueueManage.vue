@@ -57,9 +57,25 @@
 				>
 					<b-numberinput v-model="configuration['cooldown']"></b-numberinput>
 				</b-field>
+				<b-field
+					label="Custom Prompts (JSON array of prompt strings, leave empty for default)"
+				>
+					<b-input
+						type="textarea"
+						:placeholder="
+							JSON.stringify(
+								['What milestone are you working on?', 'What have you tried?'],
+								null,
+								2
+							)
+						"
+						rows="4"
+						v-model="promptsInput"
+					></b-input>
+				</b-field>
 				<button
 					class="button is-primary"
-					@click="$emit('configurationSaved', configuration)"
+					@click="$emit('configurationSaved', configuration, promptsInput)"
 				>
 					Save Queue Settings
 				</button>
@@ -153,10 +169,15 @@ export default class QueueManage extends Vue {
 	groups: string[][] = [];
 
 	groupsInput = '';
+	promptsInput = '';
 
 	constructor() {
 		super();
 		this.configuration = { ...this.defaultConfiguration };
+		this.promptsInput =
+			this.configuration.prompts.length > 0
+				? JSON.stringify(this.configuration.prompts, null, 2)
+				: '';
 		for (let i = 0; i < this.defaultGroups.length; i++) {
 			this.groups.push([...this.defaultGroups[i]]);
 		}
