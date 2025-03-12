@@ -60,7 +60,10 @@
 								</div>
 							</div>
 						</template>
-						<div class="level icon-row is-mobile">
+						<div
+							class="level icon-row is-mobile"
+							v-if="location != '(disabled)'"
+						>
 							<div class="level-left">
 								<font-awesome-icon
 									:icon="queue.config.virtual ? 'link' : 'map-marker'"
