@@ -1,0 +1,148 @@
+name: Integration Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 1
+
+  backend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+          cache-dependency-path: server/go.sum
+
+      - name: Build backend
+        run: cd server && go build -v ./...
+
+  docker-test:
+    runs-on: ubuntu-latest
+    needs: [frontend-build, backend-build]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create secrets directory
+        run: mkdir -p deploy/secrets/certs
+
+      - name: Generate secrets
+        run: |
+          openssl rand 64 > deploy/secrets/signing.key
+          echo -n "testpassword" > deploy/secrets/postgres_password
+          openssl rand -hex 32 > deploy/secrets/metrics_password
+          echo -n "test-client-secret" > deploy/secrets/oauth2_client_secret
+
+      - name: Create .env file
+        run: |
+          cp deploy/env.example deploy/.env
+
+      - name: Build Docker images
+        run: docker compose -f deploy/docker-compose-dev.yml build
+
+      - name: Start containers
+        run: |
+          docker compose -f deploy/docker-compose-dev.yml up -d
+          sleep 30
+
+      - name: Check container status
+        run: |
+          # Get all container statuses
+          container_status=$(docker compose -f deploy/docker-compose-prod.yml ps --format json | jq 'select(.State != "running")')
+          echo "$container_status"
+
+          if [ -n "$container_status" ]; then
+            echo "Error: Some containers are not running properly"
+            docker compose -f deploy/docker-compose-dev.yml logs
+            exit 1
+          else
+            echo "All containers are running properly"
+          fi
+
+      - name: Check API courses endpoint
+        run: |
+          response=$(curl -k --insecure -s -v https://lvh.me:8080/api/courses)
+          curl_code=$?
+
+          echo "API Response: $response"
+          echo "Curl exit code: $curl_code"
+
+          if [ $curl_code -eq 0 ]; then
+            # Check if response is an empty array (or contains an empty array)
+            if [[ "$response" == "[]" ]]; then
+              echo "Success: API returned empty courses array as expected"
+              exit 0
+            else
+              echo "Warning: API response doesn't match expected empty array, but connection succeeded"
+              exit 1
+            fi
+          else
+            echo "Warning: Connection to API failed with exit code $curl_code"
+            exit $curl_code
+          fi
+
+      - name: Check API user authentication endpoint
+        run: |
+          # Fetch the /api/users/@me endpoint and verify it returns 401 when not authenticated
+          status_code=$(curl -k --insecure -s -o /dev/null -w "%{http_code}" https://lvh.me:8080/api/users/@me)
+
+          echo "API Status Code: $status_code"
+
+          if [[ "$status_code" == "401" ]]; then
+            echo "Success: API correctly returned 401 Unauthorized for unauthenticated user access"
+          else
+            echo "Error: API should return 401 for unauthenticated user access, but got $status_code"
+            exit 1
+          fi
+
+      - name: Queue service logs
+        if: always()
+        run: docker compose -f deploy/docker-compose-dev.yml logs queue
+
+      - name: Caddy service logs
+        if: always()
+        run: docker compose -f deploy/docker-compose-dev.yml logs caddy
+
+      - name: DB service logs
+        if: always()
+        run: docker compose -f deploy/docker-compose-dev.yml logs db

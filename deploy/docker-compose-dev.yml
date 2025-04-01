@@ -10,9 +10,7 @@ services:
     ports:
       - "127.0.0.1:6060:6060"
     depends_on:
-      - caddy
       - db
-      - logstash
     secrets:
       - sessions_key
       - postgres_password
@@ -63,6 +61,8 @@ services:
       - elastic:/usr/share/elasticsearch/data
     networks:
       - logging
+    profiles:
+      - logging
     environment:
       - bootstrap.memory_lock=true
       - discovery.type=single-node
@@ -79,6 +79,8 @@ services:
       - "./fluent-input.conf:/usr/share/logstash/pipeline/03-fluent-input.conf"
     networks:
       - logging
+    profiles:
+      - logging
     ports:
       - "127.0.0.1:5000:5000/udp"
     logging:
@@ -93,6 +95,8 @@ services:
       - ./kibana.yml:/usr/share/kibana/config/kibana.yml
     networks:
       - logging
+    profiles:
+      - logging
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
@@ -101,11 +105,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./Caddyfile.dev:/etc/caddy/Caddyfile
-      - ../public:/public
       - ../frontend/dist:/dist
       - ./secrets/certs:/data
-    depends_on:
-      - kibana
     networks:
       - http
       - logging

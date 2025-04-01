@@ -10,7 +10,6 @@ services:
     ports:
       - "127.0.0.1:6060:6060"
     depends_on:
-      - caddy
       - db
       - logstash
     secrets:
@@ -103,12 +102,9 @@ services:
     volumes:
       - ./Caddyfile.prod:/etc/caddy/Caddyfile
       - caddy_data:/data
-      - ../public:/public
       - ../frontend/dist:/dist
     environment:
       QUEUE_DOMAIN: ${QUEUE_DOMAIN:?error}
-    depends_on:
-      - kibana
     networks:
       - http
       - logging

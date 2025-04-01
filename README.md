@@ -40,6 +40,20 @@ Finally, ensure `node` is installed on your system, navigate to the `frontend` d
 
 If you're looking to run a dev environment, that's it! Run `docker-compose -f deploy/docker-compose-dev.yml up -d`, and you're in business (you _might_ need to restart the containers the first time you spin them up due to a race condition between the initialization of the database and the application, but once the database is initialized on the first run you shouldn't run into that again). Go to `https://lvh.me:8080` (`lvh.me` always resolves to localhost, but Google OAuth2 requires a domain), and you have a queue! To see the Kibana dashboard, go to `https://lvh.me:8080/kibana` (log in as site admins).
 
+### Logging Profile
+
+The deployment includes an ELK (Elasticsearch, Logstash, Kibana) stack for comprehensive logging and monitoring. This stack is defined as a Docker Compose profile named `logging` to make it optional during deployment.
+
+By default, when you run the development environment with `docker compose -f deploy/docker-compose-dev.yml up -d`, the logging services won't start automatically.
+
+To include the logging services:
+
+```sh
+$ docker compose -f deploy/docker-compose-dev.yml --profile logging up -d
+```
+
+This will start the main application components along with the ELK stack for viewing and analyzing logs.
+
 ### Production
 
 There are a few more steps involved for deploying the production environment. When executed, Caddy will automatically fetch TLS certificates for the domain and keep them renewed through Let's Encrypt.
