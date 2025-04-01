@@ -2,8 +2,6 @@ module github.com/CarsonHoffman/office-hours-queue/server
 
 go 1.23
 
-toolchain go1.23.2
-
 require (
 	github.com/antonlindstrom/pgstore v0.0.0-20200229204646-b08ebf1105e0
 	github.com/caarlos0/env/v11 v11.3.1
@@ -11,7 +9,7 @@ require (
 	github.com/cskr/pubsub v1.0.2
 	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
 	github.com/dlmiddlecote/sqlstats v1.0.2
-	github.com/go-chi/chi v1.5.4
+	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/gorilla/sessions v1.2.1
 	github.com/gorilla/websocket v1.5.0
