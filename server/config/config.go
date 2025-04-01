@@ -11,18 +11,18 @@ import (
 // Config holds all configuration for the application
 type Config struct {
 	// Database configuration
-	DBUrl      string `env:"QUEUE_DB_URL"`
-	DBDatabase string `env:"QUEUE_DB_DATABASE"`
-	DBUsername string `env:"QUEUE_DB_USERNAME"`
+	DBUrl      string `env:"QUEUE_DB_URL,notEmpty"`
+	DBDatabase string `env:"QUEUE_DB_DATABASE,notEmpty"`
+	DBUsername string `env:"QUEUE_DB_USERNAME,notEmpty"`
 	DBPassword string
 
 	// OAuth/OIDC configuration
-	OIDCIssuerURL      string `env:"QUEUE_OIDC_ISSUER_URL"`
-	OAuth2ClientID     string `env:"QUEUE_OAUTH2_CLIENT_ID"`
+	OIDCIssuerURL      string `env:"QUEUE_OIDC_ISSUER_URL,notEmpty"`
+	OAuth2ClientID     string `env:"QUEUE_OAUTH2_CLIENT_ID,notEmpty"`
 	OAuth2ClientSecret string
-	OAuth2RedirectURI  string   `env:"QUEUE_OAUTH2_REDIRECT_URI"`
+	OAuth2RedirectURI  string   `env:"QUEUE_OAUTH2_REDIRECT_URI,notEmpty"`
 	OAuth2UsePKCE      bool     `env:"QUEUE_OAUTH2_USE_PKCE" envDefault:"true"`
-	ValidDomain        string   `env:"QUEUE_VALID_DOMAIN"`
+	ValidDomain        string   `env:"QUEUE_VALID_DOMAIN,notEmpty"`
 	SiteAdminGroups    []string `env:"QUEUE_SITE_ADMIN_GROUPS" envSeparator:","`
 	siteAdminGroupsSet map[string]struct{}
 
@@ -31,10 +31,10 @@ type Config struct {
 	UseSecureCookies bool   `env:"USE_SECURE_COOKIES" envDefault:"false"`
 
 	// Secret file paths - private to avoid exposing sensitive paths
-	dbPasswordFile         string `env:"QUEUE_DB_PASSWORD_FILE" envDefault:"deploy/secrets/postgres_password"`
-	oauth2ClientSecretFile string `env:"QUEUE_OAUTH2_CLIENT_SECRET_FILE" envDefault:"deploy/secrets/oauth2_client_secret"`
-	sessionsKeyFile        string `env:"QUEUE_SESSIONS_KEY_FILE" envDefault:"deploy/secrets/signing.key"`
-	metricsPasswordFile    string `env:"METRICS_PASSWORD_FILE" envDefault:"deploy/secrets/metrics_password"`
+	DBPasswordFile         string `env:"QUEUE_DB_PASSWORD_FILE,notEmpty"`
+	OAuth2ClientSecretFile string `env:"QUEUE_OAUTH2_CLIENT_SECRET_FILE,notEmpty"`
+	SessionsKeyFile        string `env:"QUEUE_SESSIONS_KEY_FILE,notEmpty"`
+	MetricsPasswordFile    string `env:"METRICS_PASSWORD_FILE,notEmpty"`
 
 	// Secret file contents
 	SessionsKey     []byte
@@ -71,25 +71,25 @@ func Load() error {
 	}
 
 	// Load secrets from files
-	dbPassword, err := os.ReadFile(AppConfig.dbPasswordFile)
+	dbPassword, err := os.ReadFile(AppConfig.DBPasswordFile)
 	if err != nil {
 		return fmt.Errorf("failed to load DB password file: %w", err)
 	}
 	AppConfig.DBPassword = string(dbPassword)
 
-	oauthClientSecret, err := os.ReadFile(AppConfig.oauth2ClientSecretFile)
+	oauthClientSecret, err := os.ReadFile(AppConfig.OAuth2ClientSecretFile)
 	if err != nil {
 		return fmt.Errorf("failed to load OAuth2 client secret file: %w", err)
 	}
 	AppConfig.OAuth2ClientSecret = string(oauthClientSecret)
 
-	sessionsKey, err := os.ReadFile(AppConfig.sessionsKeyFile)
+	sessionsKey, err := os.ReadFile(AppConfig.SessionsKeyFile)
 	if err != nil {
 		return fmt.Errorf("failed to load sessions key file: %w", err)
 	}
 	AppConfig.SessionsKey = sessionsKey
 
-	metricsPassword, err := os.ReadFile(AppConfig.metricsPasswordFile)
+	metricsPassword, err := os.ReadFile(AppConfig.MetricsPasswordFile)
 	if err != nil {
 		return fmt.Errorf("failed to load metrics password file: %w", err)
 	}

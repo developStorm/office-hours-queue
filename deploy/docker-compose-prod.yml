@@ -31,6 +31,8 @@ services:
       QUEUE_OAUTH2_CLIENT_SECRET_FILE: /run/secrets/oauth2_client_secret
       QUEUE_OAUTH2_REDIRECT_URI: "https://${QUEUE_DOMAIN:?error}/api/oauth2callback"
       QUEUE_VALID_DOMAIN: ${QUEUE_VALID_DOMAIN:?error}
+      QUEUE_OAUTH2_USE_PKCE: ${QUEUE_OAUTH2_USE_PKCE}
+      QUEUE_SITE_ADMIN_GROUPS: ${QUEUE_SITE_ADMIN_GROUPS}
       USE_SECURE_COOKIES: "true"
       METRICS_PASSWORD_FILE: /run/secrets/metrics_password
     logging:
