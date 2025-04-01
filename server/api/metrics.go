@@ -11,6 +11,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/CarsonHoffman/office-hours-queue/server/config"
 )
 
 var requestsCounter = prometheus.NewCounterVec(
@@ -91,7 +93,7 @@ func (s *Server) MetricsHandler() E {
 	handler := promhttp.Handler()
 	return func(w http.ResponseWriter, r *http.Request) error {
 		_, pass, ok := r.BasicAuth()
-		if !ok || pass != s.metricsPassword {
+		if !ok || pass != config.AppConfig.MetricsPassword {
 			return StatusError{
 				status:  http.StatusUnauthorized,
 				message: "Nice try!",

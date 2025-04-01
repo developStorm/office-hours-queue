@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"net/http"
 	"net/http/pprof"
-	"os"
 
 	"github.com/CarsonHoffman/office-hours-queue/server/api"
+	"github.com/CarsonHoffman/office-hours-queue/server/config"
 	"github.com/CarsonHoffman/office-hours-queue/server/db"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
@@ -19,35 +18,38 @@ func main() {
 	z, _ := zap.NewProduction()
 	l := z.Sugar().With("name", "queue")
 
-	password, err := ioutil.ReadFile(os.Getenv("QUEUE_DB_PASSWORD_FILE"))
-	if err != nil {
-		l.Fatalw("failed to load DB password file", "err", err)
+	// Load configuration from environment
+	if err := config.Load(); err != nil {
+		l.Fatalw("failed to load configuration", "err", err)
 	}
 
-	oauthClientSecret, err := ioutil.ReadFile(os.Getenv("QUEUE_OAUTH2_CLIENT_SECRET_FILE"))
-	if err != nil {
-		l.Fatalw("failed to load OAuth2 client secret file", "err", err)
-	}
-
-	provider, err := oidc.NewProvider(context.Background(), os.Getenv("QUEUE_OIDC_ISSUER_URL"))
+	// Initialize OIDC provider
+	provider, err := oidc.NewProvider(context.Background(), config.AppConfig.OIDCIssuerURL)
 	if err != nil {
 		l.Fatalw("failed to create OIDC provider", "err", err)
 	}
 
-	config := oauth2.Config{
+	oauthConfig := oauth2.Config{
 		Endpoint:     provider.Endpoint(),
-		ClientID:     os.Getenv("QUEUE_OAUTH2_CLIENT_ID"),
-		ClientSecret: string(oauthClientSecret),
-		RedirectURL:  os.Getenv("QUEUE_OAUTH2_REDIRECT_URI"),
+		ClientID:     config.AppConfig.OAuth2ClientID,
+		ClientSecret: config.AppConfig.OAuth2ClientSecret,
+		RedirectURL:  config.AppConfig.OAuth2RedirectURI,
 		Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
 	}
 
-	db, err := db.New(os.Getenv("QUEUE_DB_URL"), os.Getenv("QUEUE_DB_DATABASE"), os.Getenv("QUEUE_DB_USERNAME"), string(password))
+	// Initialize database
+	db, err := db.New(
+		config.AppConfig.DBUrl,
+		config.AppConfig.DBDatabase,
+		config.AppConfig.DBUsername,
+		config.AppConfig.DBPassword,
+	)
 	if err != nil {
 		l.Fatalw("failed to set up database", "err", err)
 	}
 
-	s := api.New(db, l, db.DB.DB, provider, config)
+	// Initialize API server
+	s := api.New(db, l, db.DB.DB, provider, oauthConfig)
 
 	r := chi.NewRouter()
 	r.Mount("/", s)

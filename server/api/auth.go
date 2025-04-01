@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 	"strings"
 
+	"github.com/CarsonHoffman/office-hours-queue/server/config"
 	"github.com/dchest/uniuri"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -23,7 +24,7 @@ var emptySessionCookie = &http.Cookie{
 	Value:    "",
 	MaxAge:   -1,
 	HttpOnly: true,
-	Secure:   os.Getenv("USE_SECURE_COOKIES") == "true",
+	Secure:   config.AppConfig.UseSecureCookies,
 	Path:     "/",
 }
 
@@ -54,16 +55,16 @@ func (s *Server) ValidLoginMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		domain := os.Getenv("QUEUE_VALID_DOMAIN")
-		if !strings.HasSuffix(email, "@"+domain) {
+		validDomain := config.AppConfig.ValidDomain
+		if !strings.HasSuffix(email, "@"+validDomain) {
 			s.logger.Warnw("found valid session with email outside valid domain",
 				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"valid_domain", domain,
+				"valid_domain", validDomain,
 				"email", email,
 			)
 			s.errorMessage(
 				http.StatusUnauthorized,
-				"Oh dear, it looks like you don't have an @"+os.Getenv("QUEUE_VALID_DOMAIN")+" account.",
+				"Oh dear, it looks like you don't have an @"+validDomain+" account.",
 				w, r,
 			)
 			return
@@ -92,11 +93,11 @@ func (s *Server) OAuth2LoginLink() E {
 				"err", err,
 			)
 			http.SetCookie(w, emptySessionCookie)
-			http.Redirect(w, r, s.baseURL+"api/oauth2login", http.StatusTemporaryRedirect)
+			http.Redirect(w, r, config.AppConfig.BaseURL+"api/oauth2login", http.StatusTemporaryRedirect)
 			return nil
 		}
 
-		state := uniuri.NewLen(64)
+		state := uniuri.NewLen(stateLength)
 		session.Values["state"] = state
 		s.sessions.Save(r, w, session)
 
@@ -117,7 +118,7 @@ func (s *Server) OAuth2Callback() E {
 		if err != nil {
 			l.Errorw("got invalid session on login", "err", err)
 			http.SetCookie(w, emptySessionCookie)
-			http.Redirect(w, r, s.baseURL+"api/oauth2login", http.StatusTemporaryRedirect)
+			http.Redirect(w, r, config.AppConfig.BaseURL+"api/oauth2login", http.StatusTemporaryRedirect)
 			return nil
 		}
 
@@ -168,7 +169,7 @@ func (s *Server) OAuth2Callback() E {
 			"email", info.Email,
 			"name", info.Name,
 		)
-		http.Redirect(w, r, s.baseURL, http.StatusTemporaryRedirect)
+		http.Redirect(w, r, config.AppConfig.BaseURL, http.StatusTemporaryRedirect)
 		return nil
 	}
 }
@@ -181,7 +182,7 @@ func (s *Server) Logout() E {
 		)
 
 		http.SetCookie(w, emptySessionCookie)
-		http.Redirect(w, r, s.baseURL, http.StatusTemporaryRedirect)
+		http.Redirect(w, r, config.AppConfig.BaseURL, http.StatusTemporaryRedirect)
 		return nil
 	}
 }
