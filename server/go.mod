@@ -2,8 +2,6 @@ module github.com/CarsonHoffman/office-hours-queue/server
 
 go 1.23
 
-toolchain go1.23.2
-
 require (
 	github.com/antonlindstrom/pgstore v0.0.0-20200229204646-b08ebf1105e0
 	github.com/caarlos0/env/v11 v11.3.1
@@ -16,7 +14,7 @@ require (
 	github.com/gorilla/sessions v1.2.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/jmoiron/sqlx v1.3.4
-	github.com/lib/pq v1.10.4
+	github.com/lib/pq v1.10.9
 	github.com/olivere/elastic/v7 v7.0.31
 	github.com/prometheus/client_golang v1.20.4
 	github.com/segmentio/ksuid v1.0.4
