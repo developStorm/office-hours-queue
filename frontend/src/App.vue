@@ -43,9 +43,11 @@
 									</b-tooltip>
 								</div>
 								<div class="navbar-item" v-if="admin">
-									<router-link to="/admin" class="no-link-color">
-										<font-awesome-icon icon="user-shield" size="2x" />
-									</router-link>
+									<b-tooltip class="is-left" label="Admin Panel">
+										<router-link to="/admin" class="no-link-color">
+											<font-awesome-icon icon="user-shield" size="2x" />
+										</router-link>
+									</b-tooltip>
 								</div>
 								<div class="navbar-item" v-if="siteAdmin">
 									<b-tooltip class="is-left" label="System Logs (Danger Zone)">
