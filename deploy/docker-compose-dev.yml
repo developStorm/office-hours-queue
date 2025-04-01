@@ -89,7 +89,7 @@ services:
         max-size: "5m"
         max-file: "2"
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.15.2
+    image: docker.elastic.co/kibana/kibana:8.17.4
     restart: unless-stopped
     volumes:
       - ./kibana.yml:/usr/share/kibana/config/kibana.yml
