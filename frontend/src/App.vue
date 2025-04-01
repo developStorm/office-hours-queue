@@ -333,6 +333,13 @@ export default class App extends Vue {
 				Vue.set(this.$root.$data, 'userInfoLoaded', true);
 				Vue.set(this.$root.$data, 'loggedIn', true);
 				Vue.set(this.$root.$data, 'userInfo', data);
+
+				// Check if there's a pending redirect after login
+				const redirectPath = localStorage.getItem('loginRedirect');
+				if (redirectPath) {
+					localStorage.removeItem('loginRedirect');
+					this.$router.push(redirectPath);
+				}
 			})
 			.catch((p) => (this.$root.$data.userInfoLoaded = true));
 	}

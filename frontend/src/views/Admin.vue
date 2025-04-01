@@ -1,71 +1,105 @@
 <template>
 	<div v-if="$root.$data.loggedIn">
-		<p class="title">Courses</p>
-		<button
-			class="button is-primary is-fullwidth block"
-			@click="addCourse"
-			v-if="$root.$data.userInfo.site_admin"
-		>
-			Add Course
-		</button>
-		<nav class="panel" v-for="(course, i) in courses" :key="i">
-			<div class="panel-heading">
-				<div class="level">
-					<div class="level-left">
-						<div class="level-item">
-							{{ course.shortName }}
+		<div v-if="hasAdminAccess">
+			<p class="title">Courses</p>
+			<button
+				class="button is-primary is-fullwidth block"
+				@click="addCourse"
+				v-if="$root.$data.userInfo.site_admin"
+			>
+				Add Course
+			</button>
+			<nav class="panel" v-for="(course, i) in courses" :key="i">
+				<div class="panel-heading">
+					<div class="level">
+						<div class="level-left">
+							<div class="level-item">
+								{{ course.shortName }}
+							</div>
+							<div class="level-item">
+								{{ course.fullName }}
+							</div>
 						</div>
-						<div class="level-item">
-							{{ course.fullName }}
-						</div>
-					</div>
-					<div class="level-right">
-						<div class="level-item">
-							<b-tooltip label="Add Queue">
-								<button class="button is-text" @click="addQueue(i)">
-									<span class="icon"
-										><font-awesome-icon icon="plus"
-									/></span></button
-							></b-tooltip>
-						</div>
-						<div class="level-item">
-							<b-tooltip label="Edit Course">
-								<button class="button is-text" @click="editCourse(i)">
-									<span class="icon"
-										><font-awesome-icon icon="edit"
-									/></span></button
-							></b-tooltip>
-						</div>
-						<div class="level-item">
-							<b-tooltip label="Delete Course">
-								<button class="button is-text" @click="deleteCourse(i)">
-									<span class="icon"
-										><font-awesome-icon icon="trash-alt"
-									/></span></button
-							></b-tooltip>
+						<div class="level-right">
+							<div class="level-item">
+								<b-tooltip label="Add Queue">
+									<button class="button is-text" @click="addQueue(i)">
+										<span class="icon"
+											><font-awesome-icon icon="plus"
+										/></span></button
+								></b-tooltip>
+							</div>
+							<div class="level-item">
+								<b-tooltip label="Edit Course">
+									<button class="button is-text" @click="editCourse(i)">
+										<span class="icon"
+											><font-awesome-icon icon="edit"
+										/></span></button
+								></b-tooltip>
+							</div>
+							<div class="level-item">
+								<b-tooltip label="Delete Course">
+									<button class="button is-text" @click="deleteCourse(i)">
+										<span class="icon"
+											><font-awesome-icon icon="trash-alt"
+										/></span></button
+								></b-tooltip>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
-			<div class="panel-block" v-for="queue in course.queues" :key="queue.id">
-				<button class="button is-text" @click="deleteQueue(queue)">
-					<font-awesome-icon icon="trash-alt" />
-				</button>
-				<span class="panel-icon">
-					<font-awesome-icon
-						icon="hand-paper"
-						v-if="queue.type === 'ordered'"
-					/>
-					<font-awesome-icon
-						icon="calendar-alt"
-						v-else-if="queue.type === 'appointments'"
-					/>
-				</span>
-				<router-link :to="'/queues/' + queue.id">
-					{{ queue.name }}
+				<div class="panel-block" v-for="queue in course.queues" :key="queue.id">
+					<button class="button is-text" @click="deleteQueue(queue)">
+						<font-awesome-icon icon="trash-alt" />
+					</button>
+					<span class="panel-icon">
+						<font-awesome-icon
+							icon="hand-paper"
+							v-if="queue.type === 'ordered'"
+						/>
+						<font-awesome-icon
+							icon="calendar-alt"
+							v-else-if="queue.type === 'appointments'"
+						/>
+					</span>
+					<router-link :to="'/queues/' + queue.id">
+						{{ queue.name }}
+					</router-link>
+				</div>
+			</nav>
+		</div>
+		<div v-else class="no-admin-access">
+			<div class="box has-text-centered">
+				<p class="title">No Admin Access</p>
+				<div class="content">
+					<p>
+						You don't have course or site admin privileges. Please contact us if
+						you believe you should have access to this area (e.g. if you are a
+						faculty member).
+					</p>
+				</div>
+				<router-link to="/" class="button is-primary is-medium">
+					<span>Return to Home</span>
 				</router-link>
 			</div>
-		</nav>
+		</div>
+	</div>
+	<div v-else class="not-logged-in">
+		<div class="box has-text-centered">
+			<p class="title">Login Required</p>
+			<div class="content">
+				<p>
+					You need to be logged in with (site/course) admin privileges to manage
+					courses and queues.
+				</p>
+			</div>
+			<button @click="loginWithRedirect" class="button is-primary is-medium">
+				<span class="icon">
+					<font-awesome-icon icon="sign-in-alt" />
+				</span>
+				<span>Log In</span>
+			</button>
+		</div>
 	</div>
 </template>
 
@@ -78,6 +112,7 @@ import {
 	faHandPaper,
 	faCalendarAlt,
 	faTrashAlt,
+	faSignInAlt,
 } from '@fortawesome/free-solid-svg-icons';
 import Course from '@/types/Course';
 import Queue from '@/types/Queue';
@@ -86,7 +121,14 @@ import QueueAdd from '@/components/admin/QueueAdd.vue';
 import ErrorDialog from '@/util/ErrorDialog';
 import EscapeHTML from '@/util/Sanitization';
 
-library.add(faEdit, faPlus, faHandPaper, faCalendarAlt, faTrashAlt);
+library.add(
+	faEdit,
+	faPlus,
+	faHandPaper,
+	faCalendarAlt,
+	faTrashAlt,
+	faSignInAlt
+);
 
 @Component
 export default class AdminPage extends Vue {
@@ -96,6 +138,19 @@ export default class AdminPage extends Vue {
 		).filter((c: Course) =>
 			this.$root.$data.userInfo.admin_courses.includes(c.id)
 		);
+	}
+
+	get hasAdminAccess(): boolean {
+		return (
+			this.$root.$data.userInfo.site_admin ||
+			(this.$root.$data.userInfo.admin_courses &&
+				this.$root.$data.userInfo.admin_courses.length > 0)
+		);
+	}
+
+	loginWithRedirect() {
+		localStorage.setItem('loginRedirect', '/admin');
+		window.location.href = process.env.BASE_URL + 'api/oauth2login';
 	}
 
 	addCourse() {
@@ -251,3 +306,12 @@ export default class AdminPage extends Vue {
 	}
 }
 </script>
+
+<style scoped>
+.not-logged-in,
+.no-admin-access {
+	max-width: 500px;
+	margin: 2rem auto;
+	padding: 1rem;
+}
+</style>
