@@ -16,6 +16,7 @@ const (
 	nameContextKey      = "name"
 	firstNameContextKey = "first_name"
 	sessionContextKey   = "session"
+	GroupsContextKey    = "groups"
 	stateLength         = 64
 )
 
@@ -182,9 +183,10 @@ func (s *Server) OAuth2Callback() E {
 		}
 
 		var info struct {
-			Email     string `json:"email"`
-			Name      string `json:"name"`
-			GivenName string `json:"given_name"`
+			Email     string   `json:"email"`
+			Name      string   `json:"name"`
+			GivenName string   `json:"given_name"`
+			Groups    []string `json:"groups"`
 		}
 		if err := json.NewDecoder(rawInfo.Body).Decode(&info); err != nil {
 			l.Errorw("failed to decode user info", "err", err)
@@ -194,6 +196,7 @@ func (s *Server) OAuth2Callback() E {
 		session.Values["email"] = info.Email
 		session.Values["name"] = info.Name
 		session.Values["first_name"] = info.GivenName
+		session.Values["groups"] = info.Groups
 
 		// Clean up OAuth session values
 		delete(session.Values, "code_verifier")
@@ -205,6 +208,7 @@ func (s *Server) OAuth2Callback() E {
 			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
 			"email", info.Email,
 			"name", info.Name,
+			"groups", info.Groups,
 		)
 		http.Redirect(w, r, config.AppConfig.BaseURL, http.StatusTemporaryRedirect)
 		return nil
@@ -262,6 +266,7 @@ func (s *Server) GetCurrentUserInfo(gi getUserInfo) E {
 		// but is actually not horrible!
 		name, _ := r.Context().Value(nameContextKey).(string)
 		firstName, _ := r.Context().Value(firstNameContextKey).(string)
+		groups, _ := r.Context().Value(GroupsContextKey).([]string)
 
 		resp := struct {
 			Email        string   `json:"email"`
@@ -269,7 +274,8 @@ func (s *Server) GetCurrentUserInfo(gi getUserInfo) E {
 			AdminCourses []string `json:"admin_courses"`
 			Name         string   `json:"name"`
 			FirstName    string   `json:"first_name"`
-		}{email, admin, courses, name, firstName}
+			Groups       []string `json:"groups"`
+		}{email, admin, courses, name, firstName, groups}
 
 		return s.sendResponse(http.StatusOK, resp, w, r)
 	}
