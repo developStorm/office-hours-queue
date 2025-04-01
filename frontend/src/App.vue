@@ -47,6 +47,13 @@
 										<font-awesome-icon icon="user-shield" size="2x" />
 									</router-link>
 								</div>
+								<div class="navbar-item" v-if="siteAdmin">
+									<b-tooltip class="is-left" label="System Logs (Danger Zone)">
+										<a href="/kibana" target="_blank" class="no-link-color">
+											<font-awesome-icon icon="chart-line" size="2x" />
+										</a>
+									</b-tooltip>
+								</div>
 								<div class="navbar-item">
 									<a
 										href="https://github.com/developStorm/office-hours-queue"
@@ -219,6 +226,7 @@ import {
 	faUserGraduate,
 	faAngleLeft,
 	faAngleRight,
+	faChartLine,
 } from '@fortawesome/free-solid-svg-icons';
 import { faStar as regularStar } from '@fortawesome/free-regular-svg-icons';
 import { faGithub } from '@fortawesome/free-brands-svg-icons';
@@ -232,7 +240,8 @@ library.add(
 	regularStar,
 	faUserGraduate,
 	faAngleLeft,
-	faAngleRight
+	faAngleRight,
+	faChartLine
 );
 
 @Component
@@ -282,6 +291,14 @@ export default class App extends Vue {
 			this.$root.$data.loggedIn &&
 			(this.$root.$data.userInfo.site_admin ||
 				this.$root.$data.userInfo.admin_courses.length > 0)
+		);
+	}
+
+	get siteAdmin() {
+		return (
+			!this.studentView &&
+			this.$root.$data.loggedIn &&
+			this.$root.$data.userInfo.site_admin
 		);
 	}
 
