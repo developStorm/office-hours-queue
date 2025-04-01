@@ -2,9 +2,7 @@ package api
 
 import (
 	"database/sql"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/antonlindstrom/pgstore"
@@ -15,18 +13,18 @@ import (
 	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
+
+	"github.com/CarsonHoffman/office-hours-queue/server/config"
 )
 
 type Server struct {
 	chi.Router
 
-	logger          *zap.SugaredLogger
-	sessions        *pgstore.PGStore
-	ps              *pubsub.PubSub
-	oauthConfig     oauth2.Config
-	oidcProvider    *oidc.Provider
-	baseURL         string
-	metricsPassword string
+	logger       *zap.SugaredLogger
+	sessions     *pgstore.PGStore
+	ps           *pubsub.PubSub
+	oauthConfig  oauth2.Config
+	oidcProvider *oidc.Provider
 
 	// The number of WebSockets connected to each queue.
 	websocketCount        map[ksuid.KSUID]int
@@ -105,27 +103,17 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 	s.websocketCountByEmail = make(map[ksuid.KSUID]map[string]int)
 	s.logger = logger
 
-	key, err := ioutil.ReadFile(os.Getenv("QUEUE_SESSIONS_KEY_FILE"))
-	if err != nil {
-		logger.Fatalw("couldn't load sessions key", "err", err)
-	}
-
-	s.sessions, err = pgstore.NewPGStoreFromPool(sessionsStore, key)
+	var err error
+	s.sessions, err = pgstore.NewPGStoreFromPool(sessionsStore, config.AppConfig.SessionsKey)
 	if err != nil {
 		logger.Fatalw("couldn't set up session store", "err", err)
 	}
 	s.sessions.Options = &sessions.Options{
 		HttpOnly: true,
-		Secure:   os.Getenv("USE_SECURE_COOKIES") == "true",
+		Secure:   config.AppConfig.UseSecureCookies,
 		MaxAge:   60 * 60 * 24 * 30,
 		Path:     "/",
 	}
-
-	metricsPassword, err := ioutil.ReadFile(os.Getenv("METRICS_PASSWORD_FILE"))
-	if err != nil {
-		logger.Fatalw("couldn't load metrics password", "err", err)
-	}
-	s.metricsPassword = string(metricsPassword)
 
 	// TODO: evaluate capacity choice for channel. This assumes that
 	// there isn't likely to be more than 5 events in "quick" succession
@@ -137,8 +125,6 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 
 	s.oauthConfig = oauthConfig
 	s.oidcProvider = oidcProvider
-
-	s.baseURL = os.Getenv("QUEUE_BASE_URL")
 
 	s.Router = chi.NewRouter()
 	s.Router.Use(instrumenter, ksuidInserter, s.recoverMiddleware, s.transaction(q), s.sessionRetriever)
