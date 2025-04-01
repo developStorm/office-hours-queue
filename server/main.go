@@ -34,7 +34,7 @@ func main() {
 		ClientID:     config.AppConfig.OAuth2ClientID,
 		ClientSecret: config.AppConfig.OAuth2ClientSecret,
 		RedirectURL:  config.AppConfig.OAuth2RedirectURI,
-		Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
+		Scopes:       []string{oidc.ScopeOpenID, "email", "profile", "groups"},
 	}
 
 	// Initialize database

@@ -6,6 +6,7 @@ toolchain go1.23.2
 
 require (
 	github.com/antonlindstrom/pgstore v0.0.0-20200229204646-b08ebf1105e0
+	github.com/caarlos0/env/v11 v11.3.1
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/cskr/pubsub v1.0.2
 	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
@@ -24,7 +25,6 @@ require (
 )
 
 require (
-	github.com/Netflix/go-env v0.1.2
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.2 // indirect

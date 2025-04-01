@@ -107,10 +107,17 @@ func (s *Server) sessionRetriever(next http.Handler) http.Handler {
 			return
 		}
 
+		groups, ok := session.Values["groups"].([]string)
+		if !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		ctx := context.WithValue(r.Context(), emailContextKey, email)
 		ctx = context.WithValue(ctx, nameContextKey, name)
 		ctx = context.WithValue(ctx, firstNameContextKey, firstName)
 		ctx = context.WithValue(ctx, sessionContextKey, session.Values)
+		ctx = context.WithValue(ctx, GroupsContextKey, groups)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

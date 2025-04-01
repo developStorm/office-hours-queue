@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/CarsonHoffman/office-hours-queue/server/api"
+	"github.com/CarsonHoffman/office-hours-queue/server/config"
 	"github.com/dlmiddlecote/sqlstats"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -43,6 +44,13 @@ func New(url, database, username, password string) (*Server, error) {
 }
 
 func (s *Server) SiteAdmin(ctx context.Context, email string) (bool, error) {
+	// Check if user is in one of the OAuth admin groups
+	groups, ok := ctx.Value(api.GroupsContextKey).([]string)
+	if ok && config.AppConfig.AnyInSiteAdminGroups(groups) {
+		return true, nil
+	}
+
+	// If not, check if user is in site admins table
 	var n int
 	err := s.DB.GetContext(ctx, &n,
 		"SELECT COUNT(*) FROM site_admins WHERE email=$1",
