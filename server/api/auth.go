@@ -99,10 +99,21 @@ func (s *Server) OAuth2LoginLink() E {
 
 		state := uniuri.NewLen(stateLength)
 		session.Values["state"] = state
+
+		var url string
+		if config.AppConfig.OAuth2UsePKCE {
+			codeVerifier := oauth2.GenerateVerifier()
+			session.Values["code_verifier"] = codeVerifier
+
+			url = s.oauthConfig.AuthCodeURL(state,
+				oauth2.AccessTypeOnline,
+				oauth2.S256ChallengeOption(codeVerifier),
+			)
+		} else {
+			url = s.oauthConfig.AuthCodeURL(state, oauth2.AccessTypeOnline)
+		}
+
 		s.sessions.Save(r, w, session)
-
-		url := s.oauthConfig.AuthCodeURL(state)
-
 		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 		return nil
 	}
@@ -136,10 +147,31 @@ func (s *Server) OAuth2Callback() E {
 			}
 		}
 
-		token, err := s.oauthConfig.Exchange(r.Context(), code)
-		if err != nil {
-			l.Errorw("failed to exchange token", "err", err)
-			return err
+		var token *oauth2.Token
+		var tokenErr error
+
+		if config.AppConfig.OAuth2UsePKCE {
+			codeVerifier, ok := session.Values["code_verifier"].(string)
+			if !ok {
+				l.Errorw("failed to get OAuth2 code verifier from session")
+				return StatusError{
+					http.StatusUnauthorized,
+					"Missing PKCE code verifier.",
+				}
+			}
+
+			token, tokenErr = s.oauthConfig.Exchange(
+				r.Context(),
+				code,
+				oauth2.VerifierOption(codeVerifier),
+			)
+		} else {
+			token, tokenErr = s.oauthConfig.Exchange(r.Context(), code)
+		}
+
+		if tokenErr != nil {
+			l.Errorw("failed to exchange token", "err", tokenErr)
+			return tokenErr
 		}
 
 		client := s.oauthConfig.Client(r.Context(), token)
@@ -162,6 +194,11 @@ func (s *Server) OAuth2Callback() E {
 		session.Values["email"] = info.Email
 		session.Values["name"] = info.Name
 		session.Values["first_name"] = info.GivenName
+
+		// Clean up OAuth session values
+		delete(session.Values, "code_verifier")
+		delete(session.Values, "state")
+
 		s.sessions.Save(r, w, session)
 
 		s.logger.Infow("processed login",
