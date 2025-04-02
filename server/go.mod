@@ -20,7 +20,7 @@ require (
 	github.com/olivere/elastic/v7 v7.0.31
 	github.com/prometheus/client_golang v1.21.1
 	github.com/segmentio/ksuid v1.0.4
-	go.uber.org/zap v1.21.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/oauth2 v0.28.0
 )
 
@@ -37,9 +37,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/goleak v1.3.0 // indirect
-	go.uber.org/multierr v1.7.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.1 // indirect
