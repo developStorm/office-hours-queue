@@ -10,9 +10,7 @@ services:
     ports:
       - "127.0.0.1:6060:6060"
     depends_on:
-      - caddy
       - db
-      - logstash
     secrets:
       - sessions_key
       - postgres_password
@@ -41,7 +39,7 @@ services:
         fluentd-address: tcp://127.0.0.1:5000
         fluentd-async: "true"
   db:
-    image: postgres:13.5
+    image: postgres:13.20
     restart: unless-stopped
     volumes:
       - db:/var/lib/postgresql/data
@@ -57,11 +55,13 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: queue
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.4
     restart: unless-stopped
     volumes:
       - elastic:/usr/share/elasticsearch/data
     networks:
+      - logging
+    profiles:
       - logging
     environment:
       - bootstrap.memory_lock=true
@@ -73,11 +73,13 @@ services:
         soft: -1
         hard: -1
   logstash:
-    image: docker.elastic.co/logstash/logstash:8.15.2
+    image: docker.elastic.co/logstash/logstash:8.17.4
     restart: unless-stopped
     volumes:
       - "./fluent-input.conf:/usr/share/logstash/pipeline/03-fluent-input.conf"
     networks:
+      - logging
+    profiles:
       - logging
     ports:
       - "127.0.0.1:5000:5000/udp"
@@ -87,11 +89,13 @@ services:
         max-size: "5m"
         max-file: "2"
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.15.2
+    image: docker.elastic.co/kibana/kibana:8.17.4
     restart: unless-stopped
     volumes:
       - ./kibana.yml:/usr/share/kibana/config/kibana.yml
     networks:
+      - logging
+    profiles:
       - logging
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
@@ -101,11 +105,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./Caddyfile.dev:/etc/caddy/Caddyfile
-      - ../public:/public
       - ../frontend/dist:/dist
       - ./secrets/certs:/data
-    depends_on:
-      - kibana
     networks:
       - http
       - logging

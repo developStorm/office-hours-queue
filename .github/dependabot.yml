@@ -8,6 +8,11 @@ updates:
     labels:
       - "dependencies"
       - "npm"
+    ignore:
+      - dependency-name: "*vue*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "*fortawesome*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "gomod"
     directory: "/server"
