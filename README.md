@@ -38,7 +38,7 @@ To enable certain features like notifications, browsers force the use of HTTPS. 
 
 Finally, ensure `node` is installed on your system, navigate to the `frontend` directory, and run `npm install && npm run build`. I'd like to automate this in the future, but we're not directly building it into a container, which makes it a tad difficult. On the plus side, if any changes are made to the JS, another run of `npm run build` will rebuild the bundle and make it immediately available without a container restart.
 
-If you're looking to run a dev environment, that's it! Run `docker-compose -f deploy/docker-compose-dev.yml up -d`, and you're in business (you _might_ need to restart the containers the first time you spin them up due to a race condition between the initialization of the database and the application, but once the database is initialized on the first run you shouldn't run into that again). Go to `https://lvh.me:8080` (`lvh.me` always resolves to localhost, but Google OAuth2 requires a domain), and you have a queue! To see the Kibana dashboard, go to `https://lvh.me:8080/kibana` (log in as site admins).
+If you're looking to run a dev environment, that's it! Run `docker compose -f deploy/docker-compose-dev.yml up -d`, and you're in business (you _might_ need to restart the containers the first time you spin them up due to a race condition between the initialization of the database and the application, but once the database is initialized on the first run you shouldn't run into that again). Go to `https://lvh.me:8080` (`lvh.me` always resolves to localhost, but Google OAuth2 requires a domain), and you have a queue! To see the Kibana dashboard, go to `https://lvh.me:8080/kibana` (log in as site admins).
 
 ### Logging Profile
 
@@ -58,18 +58,18 @@ This will start the main application components along with the ELK stack for vie
 
 There are a few more steps involved for deploying the production environment. When executed, Caddy will automatically fetch TLS certificates for the domain and keep them renewed through Let's Encrypt.
 
-The application can now be started with `docker-compose -f deploy/docker-compose-prod.yml up -d`.
+The application can now be started with `docker compose -f deploy/docker-compose-prod.yml up -d`.
 
 ---
 
-Once the application is running, you'll need to drop into the database for one step, which is setting up your email as a site admin. The database is exposed on port 8001 on the host.
+Once the application is running, if you don't automatically receive site admin privileges through OIDC entitlements, you'll need to manually add your email to the admin list by executing the following SQL command in the database:
 
 ```sh
-$ psql -h localhost -p 8001 -U queue
+$ docker compose -f deploy/docker-compose-prod.yml exec -it db psql -h localhost -p 5432 -U queue
 queue=# INSERT INTO site_admins (email) VALUES ('your@email.com');
 ```
 
-From there, you should be able to manage everything from the HTTP API, and shouldn't have to drop into the database. If you do, however, it's always there on port 8001. That's to say: don't expose that port. :)
+From there, you should be able to manage everything from the HTTP API, and shouldn't have to drop into the database.
 
 ---
 
