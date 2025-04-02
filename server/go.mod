@@ -12,10 +12,10 @@ require (
 	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
 	github.com/dlmiddlecote/sqlstats v1.0.2
 	github.com/go-chi/chi v1.5.4
-	github.com/go-chi/chi/v5 v5.0.7
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/gorilla/sessions v1.4.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/jmoiron/sqlx v1.3.4
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/olivere/elastic/v7 v7.0.31
 	github.com/prometheus/client_golang v1.21.1
