@@ -564,6 +564,7 @@ func (s *Server) QueueStats() ([]api.QueueStats, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch ordered queues: %w", err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var q api.QueueStats
@@ -575,6 +576,9 @@ func (s *Server) QueueStats() ([]api.QueueStats, error) {
 
 		queues = append(queues, q)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating ordered queues: %w", err)
+	}
 
 	rows, err = s.DB.Query(`SELECT q.id, c.id, COUNT(a.id) FROM queues q LEFT JOIN appointment_slots a ON a.queue=q.id
 							AND a.student_email IS NOT NULL AND a.scheduled_time >= NOW()
@@ -583,6 +587,7 @@ func (s *Server) QueueStats() ([]api.QueueStats, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch appointments queues: %w", err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var q api.QueueStats
@@ -593,6 +598,9 @@ func (s *Server) QueueStats() ([]api.QueueStats, error) {
 		}
 
 		queues = append(queues, q)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating appointments queues: %w", err)
 	}
 
 	return queues, nil
