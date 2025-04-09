@@ -1,3 +1,13 @@
+{
+	metrics {
+		per_host
+	}
+}
+
+:2020 {
+	metrics /metrics
+}
+
 {$QUEUE_DOMAIN} {
 	encode gzip
 

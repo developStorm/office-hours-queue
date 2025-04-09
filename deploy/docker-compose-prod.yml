@@ -112,6 +112,7 @@ services:
       - 80:80
       - 443:443
       - 443:443/udp
+      - 127.0.0.1:2020:2020
     logging:
       driver: fluentd
       options:

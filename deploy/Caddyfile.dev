@@ -1,3 +1,13 @@
+{
+	metrics {
+		per_host
+	}
+}
+
+:2020 {
+	metrics /metrics
+}
+
 lvh.me {
 	tls internal
 
