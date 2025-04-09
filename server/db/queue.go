@@ -558,7 +558,7 @@ func (s *Server) ViewMessage(ctx context.Context, queue ksuid.KSUID, receiver st
 func (s *Server) QueueStats() ([]api.QueueStats, error) {
 	var queues []api.QueueStats
 
-	rows, err := s.DB.Query(`SELECT q.id, c.id, COUNT(e.id) FROM queues q LEFT JOIN queue_entries e ON e.queue=q.id AND e.active IS NOT NULL
+	rows, err := s.DB.Query(`SELECT q.id, c.id, COUNT(e.id) FROM queues q LEFT JOIN queue_entries e ON e.queue=q.id AND e.active IS NOT NULL AND NOT e.helping
 							 LEFT JOIN courses c ON c.id=q.course WHERE q.active AND q.type='ordered' GROUP BY q.id, c.id`)
 
 	if err != nil {
