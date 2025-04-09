@@ -38,6 +38,7 @@ func New(url, database, username, password string) (*Server, error) {
 	var s Server
 	s.DB = db
 
+	db.SetMaxOpenConns(100) // Postgres default
 	prometheus.MustRegister(collectors.NewDBStatsCollector(db.DB, "queue"))
 
 	return &s, nil
