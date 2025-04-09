@@ -6,10 +6,10 @@ import (
 
 	"github.com/CarsonHoffman/office-hours-queue/server/api"
 	"github.com/CarsonHoffman/office-hours-queue/server/config"
-	"github.com/dlmiddlecote/sqlstats"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
 type Server struct {
@@ -38,7 +38,7 @@ func New(url, database, username, password string) (*Server, error) {
 	var s Server
 	s.DB = db
 
-	prometheus.MustRegister(sqlstats.NewStatsCollector("queue", db))
+	prometheus.MustRegister(collectors.NewDBStatsCollector(db.DB, "queue"))
 
 	return &s, nil
 }
