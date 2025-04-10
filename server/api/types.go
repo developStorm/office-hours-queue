@@ -106,7 +106,7 @@ func (q *QueueEntry) MarshalJSON() ([]byte, error) {
 func (q *QueueEntry) Anonymized() *QueueEntry {
 	helping := q.Helping
 	if helping != "" {
-		helping = " a teaching staff"
+		helping = " staff"
 	}
 
 	return &QueueEntry{

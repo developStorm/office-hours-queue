@@ -908,7 +908,9 @@ func (s *Server) SetQueueEntryHelping(eh setQueueEntryHelping) E {
 
 		l.Infow("set helping status", "helping", helping)
 
-		s.ps.Pub(WS("ENTRY_UPDATE", entry.Anonymized()), QueueTopicGeneric(q.ID))
+		s.ps.Pub(WS("ENTRY_UPDATE", entry.Anonymized()), QueueTopicNonPrivileged(q.ID))
+		s.ps.Pub(WS("ENTRY_UPDATE", entry), QueueTopicAdmin(q.ID))
+		s.ps.Pub(WS("ENTRY_UPDATE", entry), QueueTopicEmail(q.ID, entry.Email))
 		s.ps.Pub(WS("ENTRY_HELPING", entry), QueueTopicEmail(q.ID, entry.Email))
 
 		return s.sendResponse(http.StatusNoContent, nil, w, r)

@@ -62,7 +62,7 @@ func (s *Server) GetQueueEntry(ctx context.Context, entry ksuid.KSUID, allowRemo
 
 func (s *Server) GetQueueEntries(ctx context.Context, queue ksuid.KSUID, admin bool) ([]*api.QueueEntry, error) {
 	tx := getTransaction(ctx)
-	query := "SELECT id, queue, priority, pinned, helping FROM queue_entries WHERE queue=$1 AND active IS NOT NULL ORDER BY pinned DESC, priority DESC, id"
+	query := "SELECT id, queue, priority, pinned, CASE WHEN helping = '' THEN '' ELSE ' staff' END AS helping FROM queue_entries WHERE queue=$1 AND active IS NOT NULL ORDER BY pinned DESC, priority DESC, id"
 	if admin {
 		query = "SELECT * FROM queue_entries WHERE queue=$1 AND active IS NOT NULL ORDER BY pinned DESC, priority DESC, id"
 	}
