@@ -8,7 +8,7 @@ import (
 	"github.com/antonlindstrom/pgstore"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/cskr/pubsub"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/sessions"
 	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
