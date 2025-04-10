@@ -62,9 +62,7 @@ func (s *Server) transaction(tr transactioner) func(http.Handler) http.Handler {
 				// The handler already wrote a status code, so the best we can
 				// do is log the failed rollback.
 				if err != nil {
-					s.getCtxLogger(r).Errorw("transaction rollback failed",
-						"err", err,
-					)
+					s.getCtxLogger(r).Errorw("transaction rollback failed", "err", err)
 				}
 				return
 			}
@@ -73,9 +71,7 @@ func (s *Server) transaction(tr transactioner) func(http.Handler) http.Handler {
 			if err != nil {
 				// The handler already wrote a status code, so the best we can
 				// do is log the failed commit.
-				s.getCtxLogger(r).Errorw("transaction commit failed",
-					"err", err,
-				)
+				s.getCtxLogger(r).Errorw("transaction commit failed", "err", err)
 			}
 		})
 	}
@@ -85,9 +81,7 @@ func (s *Server) sessionRetriever(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := s.sessions.Get(r, "session")
 		if err != nil {
-			s.getCtxLogger(r).Infow("got invalid session",
-				"err", err,
-			)
+			s.getCtxLogger(r).Infow("got invalid session", "err", err)
 			http.SetCookie(w, emptySessionCookie)
 			s.errorMessage(
 				http.StatusUnauthorized,

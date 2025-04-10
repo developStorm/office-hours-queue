@@ -35,10 +35,7 @@ func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler 
 			idString := chi.URLParam(r, "id")
 			id, err := ksuid.Parse(idString)
 			if err != nil {
-				l.Warnw("failed to parse queue id",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"queue_id", idString,
-				)
+				l.Warnw("failed to parse queue id", "queue_id", idString)
 				s.errorMessage(
 					http.StatusNotFound,
 					"That queue is hiding from me…make sure it exists!",
@@ -49,10 +46,7 @@ func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler 
 
 			q, err := gq.GetQueue(r.Context(), id)
 			if errors.Is(err, sql.ErrNoRows) {
-				l.Warnw("failed to get non-existent queue with valid ksuid",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"queue_id", idString,
-				)
+				l.Warnw("failed to get non-existent queue with valid ksuid", "queue_id", idString)
 				s.errorMessage(
 					http.StatusNotFound,
 					"That queue is hiding from me…make sure it exists!",
@@ -60,11 +54,7 @@ func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler 
 				)
 				return
 			} else if err != nil {
-				l.Errorw("failed to get queue",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"queue_id", idString,
-					"err", err,
-				)
+				l.Errorw("failed to get queue", "queue_id", idString, "err", err)
 				s.internalServerError(w, r)
 				return
 			}
@@ -268,9 +258,7 @@ func (s *Server) QueueWebsocket() E {
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			s.getCtxLogger(r).Warnw("failed to upgrade to websocket connection",
-				"err", err,
-			)
+			s.getCtxLogger(r).Warnw("failed to upgrade to websocket connection", "err", err)
 			return StatusError{
 				status: http.StatusBadRequest,
 			}
