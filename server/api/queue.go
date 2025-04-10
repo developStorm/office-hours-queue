@@ -930,7 +930,6 @@ type randomizeQueueEntries interface {
 func (s *Server) RandomizeQueueEntries(re randomizeQueueEntries) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
 		err := re.RandomizeQueueEntries(r.Context(), q.ID)
 		if err != nil {
 			s.getCtxLogger(r).Errorw("failed to randomize queue",
@@ -989,7 +988,6 @@ type addQueueAnnouncement interface {
 func (s *Server) AddQueueAnnouncement(aa addQueueAnnouncement) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
 
 		var announcement Announcement
 		err := json.NewDecoder(r.Body).Decode(&announcement)

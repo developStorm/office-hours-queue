@@ -66,12 +66,6 @@ type ErrorMessage struct {
 }
 
 func (s *Server) errorMessage(status int, message string, w http.ResponseWriter, r *http.Request) {
-	logger := s.getCtxLogger(r)
-	logger.Warnw("returning error response",
-		"status", status,
-		"message", message,
-	)
-
 	s.sendResponse(
 		status,
 		ErrorMessage{Message: message},
@@ -80,9 +74,6 @@ func (s *Server) errorMessage(status int, message string, w http.ResponseWriter,
 }
 
 func (s *Server) internalServerError(w http.ResponseWriter, r *http.Request) {
-	logger := s.getCtxLogger(r)
-	logger.Errorw("internal server error")
-
 	s.sendResponse(
 		http.StatusInternalServerError,
 		ErrorMessage{
