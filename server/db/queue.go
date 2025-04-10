@@ -424,7 +424,7 @@ func (s *Server) PinQueueEntry(ctx context.Context, entry ksuid.KSUID) error {
 	return err
 }
 
-func (s *Server) SetQueueEntryHelping(ctx context.Context, entry ksuid.KSUID, helping bool) error {
+func (s *Server) SetQueueEntryHelping(ctx context.Context, entry ksuid.KSUID, helping string) error {
 	tx := getTransaction(ctx)
 	_, err := tx.ExecContext(ctx,
 		"UPDATE queue_entries SET helping=$1 WHERE id=$2",

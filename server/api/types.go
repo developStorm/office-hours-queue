@@ -64,7 +64,7 @@ type QueueEntry struct {
 	MapY        float32        `json:"map_y,omitempty" db:"map_y"`
 	Priority    int            `json:"priority" db:"priority"`
 	Pinned      bool           `json:"pinned,omitempty" db:"pinned"`
-	Helping     bool           `json:"helping" db:"helping"`
+	Helping     string         `json:"helping" db:"helping"`
 	Active      sql.NullBool   `json:"-" db:"active"`
 	RemovedBy   sql.NullString `json:"-" db:"removed_by"`
 	RemovedAt   sql.NullTime   `json:"-" db:"removed_at"`
@@ -104,6 +104,11 @@ func (q *QueueEntry) MarshalJSON() ([]byte, error) {
 // Anonymized returns a version of this queue entry suitable for
 // consumption by other users.
 func (q *QueueEntry) Anonymized() *QueueEntry {
+	helping := q.Helping
+	if helping != "" {
+		helping = " a teaching staff"
+	}
+
 	return &QueueEntry{
 		ID:       q.ID,
 		Queue:    q.Queue,
@@ -128,7 +133,7 @@ type RemovedQueueEntry struct {
 	RemovedBy   string       `json:"removed_by,omitempty" db:"removed_by"`
 	RemovedAt   time.Time    `json:"removed_at" db:"removed_at"`
 	Helped      bool         `json:"helped" db:"helped"`
-	Helping     bool         `json:"-" db:"helping"`
+	Helping     string       `json:"-" db:"helping"`
 }
 
 func (q *RemovedQueueEntry) MarshalJSON() ([]byte, error) {
