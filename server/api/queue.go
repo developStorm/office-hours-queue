@@ -852,7 +852,7 @@ func (s *Server) PinQueueEntry(pb pinQueueEntry) E {
 
 type setQueueEntryHelping interface {
 	getQueueEntry
-	SetQueueEntryHelping(ctx context.Context, entry ksuid.KSUID, helping bool) error
+	SetQueueEntryHelping(ctx context.Context, entry ksuid.KSUID, helping string) error
 }
 
 func (s *Server) SetQueueEntryHelping(eh setQueueEntryHelping) E {
@@ -893,13 +893,18 @@ func (s *Server) SetQueueEntryHelping(eh setQueueEntryHelping) E {
 			}
 		}
 
-		err = eh.SetQueueEntryHelping(r.Context(), entryID, helping)
+		beingHelpedBy := ""
+		if helping {
+			beingHelpedBy = " " + r.Context().Value(firstNameContextKey).(string)
+		}
+
+		err = eh.SetQueueEntryHelping(r.Context(), entryID, beingHelpedBy)
 		if err != nil {
 			l.Errorw("failed to set helping status", "err", err)
 			return err
 		}
 
-		entry.Helping = helping
+		entry.Helping = beingHelpedBy
 
 		l.Infow("set helping status", "helping", helping)
 

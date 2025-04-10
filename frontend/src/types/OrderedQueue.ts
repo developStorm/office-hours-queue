@@ -59,7 +59,7 @@ export default class OrderedQueue extends Queue {
 	}
 
 	get waitingEntries(): QueueEntry[] {
-		return this.entries.filter((e) => !e.helping && !e.pinned);
+		return this.entries.filter((e) => !e.isBeingHelped && !e.pinned);
 	}
 
 	get admin(): boolean {
@@ -154,14 +154,14 @@ export default class OrderedQueue extends Queue {
 				break;
 			}
 			case 'ENTRY_HELPING': {
-				if (data.helping) {
+				if (data.helping !== '') {
 					SendNotification(
 						'You are being helped!',
 						`Please be ready for a staff member to join you!`
 					);
 					Dialog.alert({
 						title: `You're up!`,
-						message: `A staff member is now coming to help you. Please be ready for them to join!`,
+						message: `${data.helping} is now coming to help you. Please be ready for them to join!`,
 						type: 'is-success',
 						hasIcon: true,
 					});
@@ -258,8 +258,8 @@ export default class OrderedQueue extends Queue {
 				return a.pinned ? -1 : 1;
 			}
 
-			if (a.helping != b.helping) {
-				return a.helping ? -1 : 1;
+			if (a.isBeingHelped != b.isBeingHelped) {
+				return a.isBeingHelped ? -1 : 1;
 			}
 
 			if (a.priority != b.priority) {

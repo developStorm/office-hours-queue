@@ -136,7 +136,7 @@
 									class="button is-success"
 									:class="{ 'is-loading': helpingRequestRunning }"
 									v-on:click="setHelping(true)"
-									v-if="admin && !entry.helping"
+									v-if="admin && !entry.isBeingHelped"
 								>
 									<span class="icon"
 										><font-awesome-icon icon="hands-helping"
@@ -149,7 +149,7 @@
 										:class="{ 'is-loading': removeRequestRunning }"
 										v-on:click="removeEntry"
 									>
-										<span class="icon"><font-awesome-icon icon="check"/></span>
+										<span class="icon"><font-awesome-icon icon="check" /></span>
 										<span>Done</span>
 									</button>
 									<button
@@ -157,7 +157,7 @@
 										:class="{ 'is-loading': helpingRequestRunning }"
 										v-on:click="setHelping(false)"
 									>
-										<span class="icon"><font-awesome-icon icon="undo"/></span>
+										<span class="icon"><font-awesome-icon icon="undo" /></span>
 										<span>Undo</span>
 									</button>
 								</template>
@@ -165,9 +165,9 @@
 									class="button is-danger"
 									:class="{ 'is-loading': removeRequestRunning }"
 									v-on:click="removeEntry"
-									v-else-if="!entry.helping"
+									v-else-if="!isBeingHelped"
 								>
-									<span class="icon"><font-awesome-icon icon="times"/></span>
+									<span class="icon"><font-awesome-icon icon="times" /></span>
 									<span>Cancel</span>
 								</button>
 							</template>
@@ -197,7 +197,9 @@
 							</template>
 							<template v-if="admin">
 								<button class="button is-warning" @click="messageUser">
-									<span class="icon"><font-awesome-icon icon="envelope"/></span>
+									<span class="icon"
+										><font-awesome-icon icon="envelope"
+									/></span>
 									<span>Message</span>
 								</button>
 							</template>
@@ -211,8 +213,8 @@
 						<b-tooltip
 							:label="
 								'This student is currently ' +
-									(entry.online ? 'online' : 'offline') +
-									'.'
+								(entry.online ? 'online' : 'offline') +
+								'.'
 							"
 							:class="{
 								'is-success': entry.online,
@@ -244,9 +246,9 @@
 							/>
 						</b-tooltip>
 					</div>
-					<div class="is-pulled-right" key="helping" v-if="entry.helping">
+					<div class="is-pulled-right" key="helping" v-if="entry.isBeingHelped">
 						<b-tooltip
-							label="This student is currently being helped."
+							:label="`This student is currently being helped by ${entry.helping}`"
 							position="is-left"
 						>
 							<font-awesome-icon

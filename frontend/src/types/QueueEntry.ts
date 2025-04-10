@@ -9,7 +9,7 @@ export class QueueEntry {
 	public location: string | undefined;
 	public priority!: number;
 	public pinned!: boolean;
-	public helping!: boolean;
+	public helping!: string;
 	public helped!: boolean;
 	public online!: boolean;
 
@@ -22,7 +22,7 @@ export class QueueEntry {
 		this.location = data['location'];
 		this.priority = data['priority'] || 0;
 		this.pinned = data['pinned'] || false;
-		this.helping = data['helping'] || false;
+		this.helping = data['helping'] || '';
 		this.helped = data['helped'] || false;
 		this.online = data['online'] || false;
 	}
@@ -48,6 +48,10 @@ export class QueueEntry {
 
 	get tooltipTimestamp(): string {
 		return this.timestamp.format('YYYY-MM-DD h:mm:ss a');
+	}
+
+	get isBeingHelped(): boolean {
+		return this.helping !== '';
 	}
 }
 
