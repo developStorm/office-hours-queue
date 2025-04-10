@@ -31,22 +31,7 @@ var emptySessionCookie = &http.Cookie{
 
 func (s *Server) ValidLoginMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, err := s.sessions.Get(r, "session")
-		if err != nil {
-			s.logger.Infow("got invalid session",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"err", err,
-			)
-			http.SetCookie(w, emptySessionCookie)
-			s.errorMessage(
-				http.StatusUnauthorized,
-				"Try logging in again.",
-				w, r,
-			)
-			return
-		}
-
-		email, ok := session.Values["email"].(string)
+		email, ok := r.Context().Value(emailContextKey).(string)
 		if !ok {
 			s.errorMessage(
 				http.StatusUnauthorized,
@@ -58,10 +43,8 @@ func (s *Server) ValidLoginMiddleware(next http.Handler) http.Handler {
 
 		validDomain := config.AppConfig.ValidDomain
 		if !strings.HasSuffix(email, "@"+validDomain) {
-			s.logger.Warnw("found valid session with email outside valid domain",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("found valid session with email outside valid domain",
 				"valid_domain", validDomain,
-				"email", email,
 			)
 			s.errorMessage(
 				http.StatusUnauthorized,
@@ -77,9 +60,8 @@ func (s *Server) ValidLoginMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) FowardAuth() E {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		s.logger.Infow("forward auth passed",
+		s.getCtxLogger(r).Infow("forward auth passed",
 			"X-Forwarded-Uri", r.Header.Get("X-Forwarded-Uri"),
-			"email", r.Context().Value(emailContextKey).(string),
 		)
 		return s.sendResponse(http.StatusNoContent, nil, w, r)
 	}
@@ -89,8 +71,7 @@ func (s *Server) OAuth2LoginLink() E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		session, err := s.sessions.New(r, "session")
 		if err != nil {
-			s.logger.Errorw("got invalid session on login",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("got invalid session on login",
 				"err", err,
 			)
 			http.SetCookie(w, emptySessionCookie)
@@ -122,7 +103,7 @@ func (s *Server) OAuth2LoginLink() E {
 
 func (s *Server) OAuth2Callback() E {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		l := s.logger.With(RequestIDContextKey, r.Context().Value(RequestIDContextKey))
+		l := s.getCtxLogger(r)
 		code := r.FormValue("code")
 		state := r.FormValue("state")
 
@@ -204,8 +185,7 @@ func (s *Server) OAuth2Callback() E {
 
 		s.sessions.Save(r, w, session)
 
-		s.logger.Infow("processed login",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+		l.Infow("processed login",
 			"email", info.Email,
 			"name", info.Name,
 			"groups", info.Groups,
@@ -217,10 +197,7 @@ func (s *Server) OAuth2Callback() E {
 
 func (s *Server) Logout() E {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		s.logger.Infow("logged out",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			emailContextKey, r.Context().Value(emailContextKey),
-		)
+		s.getCtxLogger(r).Info("logged out")
 
 		http.SetCookie(w, emptySessionCookie)
 		http.Redirect(w, r, config.AppConfig.BaseURL, http.StatusTemporaryRedirect)
@@ -243,9 +220,7 @@ func (s *Server) GetCurrentUserInfo(gi getUserInfo) E {
 
 		admin, err := gi.SiteAdmin(r.Context(), email)
 		if err != nil {
-			s.logger.Errorw("failed to get site admin status",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"email", email,
+			s.getCtxLogger(r).Errorw("failed to get site admin status",
 				"err", err,
 			)
 			return err
@@ -253,9 +228,7 @@ func (s *Server) GetCurrentUserInfo(gi getUserInfo) E {
 
 		courses, err := gi.GetAdminCourses(r.Context(), email)
 		if err != nil {
-			s.logger.Errorw("failed to get admin courses",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"email", email,
+			s.getCtxLogger(r).Errorw("failed to get admin courses",
 				"err", err,
 			)
 			return err

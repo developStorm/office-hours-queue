@@ -13,7 +13,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"github.com/lib/pq"
-	"github.com/olivere/elastic/v7"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/segmentio/ksuid"
 )
@@ -31,13 +30,12 @@ const queueContextKey = "queue"
 func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			l := s.getCtxLogger(r)
+
 			idString := chi.URLParam(r, "id")
 			id, err := ksuid.Parse(idString)
 			if err != nil {
-				s.logger.Warnw("failed to parse queue id",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"queue_id", idString,
-				)
+				l.Warnw("failed to parse queue id", "queue_id", idString)
 				s.errorMessage(
 					http.StatusNotFound,
 					"That queue is hiding from me…make sure it exists!",
@@ -48,10 +46,7 @@ func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler 
 
 			q, err := gq.GetQueue(r.Context(), id)
 			if errors.Is(err, sql.ErrNoRows) {
-				s.logger.Warnw("failed to get non-existent queue with valid ksuid",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"queue_id", idString,
-				)
+				l.Warnw("failed to get non-existent queue with valid ksuid", "queue_id", idString)
 				s.errorMessage(
 					http.StatusNotFound,
 					"That queue is hiding from me…make sure it exists!",
@@ -59,16 +54,16 @@ func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler 
 				)
 				return
 			} else if err != nil {
-				s.logger.Errorw("failed to get queue",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"queue_id", idString,
-					"err", err,
-				)
+				l.Errorw("failed to get queue", "queue_id", idString, "err", err)
 				s.internalServerError(w, r)
 				return
 			}
 
 			ctx := context.WithValue(r.Context(), queueContextKey, q)
+			ctx = context.WithValue(ctx, loggerContextKey, l.With(
+				"queue_id", q.ID,
+				"course_id", q.Course,
+			))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -116,10 +111,7 @@ type getQueueDetails interface {
 func (s *Server) GetQueue(gd getQueueDetails) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-		)
+		l := s.getCtxLogger(r)
 
 		admin := r.Context().Value(courseAdminContextKey).(bool)
 		// This is a bit of a hack, but we're okay with the zero value
@@ -266,11 +258,7 @@ func (s *Server) QueueWebsocket() E {
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			s.logger.Warnw("failed to upgrade to websocket connection",
-				"queue_id", q.ID,
-				"email", email,
-				"err", err,
-			)
+			s.getCtxLogger(r).Warnw("failed to upgrade to websocket connection", "err", err)
 			return StatusError{
 				status: http.StatusBadRequest,
 			}
@@ -305,10 +293,7 @@ func (s *Server) QueueWebsocket() E {
 		}
 
 		if email != "" {
-			s.logger.Infow("websocket connection opened",
-				"queue_id", q.ID,
-				"email", email,
-			)
+			s.getCtxLogger(r).Info("websocket connection opened")
 		}
 
 		// The interval at which the server will expect pings from the client.
@@ -357,10 +342,7 @@ func (s *Server) QueueWebsocket() E {
 					}
 
 					if email != "" {
-						s.logger.Infow("websocket connection closed",
-							"queue_id", q.ID,
-							"email", email,
-						)
+						s.getCtxLogger(r).Info("websocket connection closed")
 					}
 					return
 				}
@@ -412,12 +394,7 @@ type updateQueue interface {
 func (s *Server) UpdateQueue(uq updateQueue) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		var queue Queue
 		err := json.NewDecoder(r.Body).Decode(&queue)
@@ -455,12 +432,7 @@ type removeQueue interface {
 func (s *Server) RemoveQueue(rq removeQueue) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		err := rq.RemoveQueue(r.Context(), q.ID)
 		if err != nil {
@@ -476,22 +448,16 @@ func (s *Server) RemoveQueue(rq removeQueue) E {
 func (s *Server) GetQueueStack(gs getQueueStack) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
 
 		stack, err := gs.GetQueueStack(r.Context(), q.ID, 10000)
 		if err != nil {
-			s.logger.Errorw("failed to fetch stack",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
+			s.getCtxLogger(r).Errorw("failed to fetch stack",
 				"err", err,
 			)
 			return err
 		}
 
-		s.logger.Infow("fetched stack",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"email", email,
+		s.getCtxLogger(r).Infow("fetched stack",
 			"stack_length", len(stack),
 		)
 		return s.sendResponse(http.StatusOK, stack, w, r)
@@ -551,12 +517,7 @@ func (s *Server) AddQueueEntry(ae addQueueEntry) E {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		email := r.Context().Value(emailContextKey).(string)
 		name := r.Context().Value(nameContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"course_id", q.Course,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		currentEntries, err := ae.GetActiveQueueEntriesForUser(r.Context(), q.ID, email)
 		if err != nil {
@@ -673,11 +634,7 @@ func (s *Server) UpdateQueueEntry(ue updateQueueEntry) E {
 		id := chi.URLParam(r, "entry_id")
 		email := r.Context().Value(emailContextKey).(string)
 		name := r.Context().Value(nameContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"entry_id", id,
-			"email", email,
-		)
+		l := s.getCtxLogger(r).With("entry_id", id)
 
 		entry, err := ksuid.Parse(id)
 		if err != nil {
@@ -781,13 +738,7 @@ func (s *Server) RemoveQueueEntry(re removeQueueEntry) E {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		id := chi.URLParam(r, "entry_id")
 		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"entry_id", id,
-			"queue_id", q.ID,
-			"course_id", q.Course,
-			"email", email,
-		)
+		l := s.getCtxLogger(r).With("entry_id", id)
 
 		entry, err := ksuid.Parse(id)
 		if err != nil {
@@ -842,13 +793,7 @@ func (s *Server) PinQueueEntry(pb pinQueueEntry) E {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		id := chi.URLParam(r, "entry_id")
 		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"entry_id", id,
-			"queue_id", q.ID,
-			"course_id", q.Course,
-			"email", email,
-		)
+		l := s.getCtxLogger(r).With("entry_id", id)
 
 		entryID, err := ksuid.Parse(id)
 		if err != nil {
@@ -914,14 +859,7 @@ func (s *Server) SetQueueEntryHelping(eh setQueueEntryHelping) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		id := chi.URLParam(r, "entry_id")
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"entry_id", id,
-			"queue_id", q.ID,
-			"course_id", q.Course,
-			"email", email,
-		)
+		l := s.getCtxLogger(r).With("entry_id", id)
 
 		var helping bool
 		switch r.URL.Query().Get("helping") {
@@ -930,11 +868,7 @@ func (s *Server) SetQueueEntryHelping(eh setQueueEntryHelping) E {
 		case "false":
 			helping = false // not technically necessary but meh
 		default:
-			s.logger.Warnw("unknown helping value",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"helping", r.URL.Query().Get("helping"),
-			)
+			l.Warnw("unknown helping value", "helping", r.URL.Query().Get("helping"))
 			return StatusError{
 				http.StatusBadRequest,
 				"We couldn't read the helping status from the `helping` query parameter.",
@@ -984,23 +918,16 @@ type randomizeQueueEntries interface {
 func (s *Server) RandomizeQueueEntries(re randomizeQueueEntries) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
 		err := re.RandomizeQueueEntries(r.Context(), q.ID)
 		if err != nil {
-			s.logger.Errorw("failed to randomize queue",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"email", email,
+			s.getCtxLogger(r).Errorw("failed to randomize queue",
 				"err", err,
 			)
 			return err
 		}
 		entries, err := re.GetQueueEntries(r.Context(), q.ID, true)
 		if err != nil {
-			s.logger.Errorw("failed to get queue entries after randomization",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"email", email,
+			s.getCtxLogger(r).Errorw("failed to get queue entries after randomization",
 				"err", err,
 			)
 			return err
@@ -1013,11 +940,7 @@ func (s *Server) RandomizeQueueEntries(re randomizeQueueEntries) E {
 			s.ps.Pub(WS("ENTRY_UPDATE", e.Anonymized()), QueueTopicNonPrivileged(q.ID))
 		}
 
-		s.logger.Infow("randomized queue",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"email", email,
-		)
+		s.getCtxLogger(r).Info("randomized queue")
 
 		return s.sendResponse(http.StatusNoContent, nil, w, r)
 	}
@@ -1033,20 +956,11 @@ func (s *Server) ClearQueueEntries(ce clearQueueEntries) E {
 		email := r.Context().Value(emailContextKey).(string)
 		err := ce.ClearQueueEntries(r.Context(), q.ID, email)
 		if err != nil {
-			s.logger.Errorw("failed to clear queue",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"email", email,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to clear queue", "err", err)
 			return err
 		}
 
-		s.logger.Infow("cleared queue",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"email", email,
-		)
+		s.getCtxLogger(r).Info("cleared queue")
 
 		s.ps.Pub(WS("QUEUE_CLEAR", email), QueueTopicAdmin(q.ID))
 		s.ps.Pub(WS("QUEUE_CLEAR", nil), QueueTopicNonPrivileged(q.ID))
@@ -1062,16 +976,11 @@ type addQueueAnnouncement interface {
 func (s *Server) AddQueueAnnouncement(aa addQueueAnnouncement) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
 
 		var announcement Announcement
 		err := json.NewDecoder(r.Body).Decode(&announcement)
 		if err != nil {
-			s.logger.Warnw("failed to decode announcement from body",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"email", email,
-				"err", err,
-			)
+			s.getCtxLogger(r).Warnw("failed to decode announcement from body", "err", err)
 			return StatusError{
 				http.StatusBadRequest,
 				"We couldn't read the announcement from the request body.",
@@ -1080,11 +989,7 @@ func (s *Server) AddQueueAnnouncement(aa addQueueAnnouncement) E {
 
 		announcement.Queue = q.ID
 		if announcement.Content == "" {
-			s.logger.Warnw("received incomplete announcement",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"email", email,
-				"announcement", announcement,
-			)
+			s.getCtxLogger(r).Warnw("received incomplete announcement", "announcement", announcement)
 			return StatusError{
 				http.StatusBadRequest,
 				"It looks like you left out some fields in the announcement.",
@@ -1093,18 +998,14 @@ func (s *Server) AddQueueAnnouncement(aa addQueueAnnouncement) E {
 
 		newAnnouncement, err := aa.AddQueueAnnouncement(r.Context(), q.ID, &announcement)
 		if err != nil {
-			s.logger.Errorw("failed to create new announcement",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"email", email,
+			s.getCtxLogger(r).Errorw("failed to create new announcement",
 				"announcement", announcement,
 				"err", err,
 			)
 			return err
 		}
 
-		s.logger.Infow("created announcement",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"email", email,
+		s.getCtxLogger(r).Infow("created announcement",
 			"announcement", newAnnouncement,
 		)
 
@@ -1125,8 +1026,7 @@ func (s *Server) RemoveQueueAnnouncement(ra removeQueueAnnouncement) E {
 		id := chi.URLParam(r, "announcement_id")
 		announcement, err := ksuid.Parse(id)
 		if err != nil {
-			s.logger.Warnw("failed to parse announcement ID",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("failed to parse announcement ID",
 				"announcement_id", id,
 				"err", err,
 			)
@@ -1138,18 +1038,15 @@ func (s *Server) RemoveQueueAnnouncement(ra removeQueueAnnouncement) E {
 
 		err = ra.RemoveQueueAnnouncement(r.Context(), announcement)
 		if err != nil {
-			s.logger.Errorw("failed to remove announcement",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("failed to remove announcement",
 				"announcement_id", announcement,
 				"err", err,
 			)
 			return err
 		}
 
-		s.logger.Infow("removed announcement",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+		s.getCtxLogger(r).Infow("removed announcement",
 			"announcement_id", announcement,
-			"email", r.Context().Value(emailContextKey),
 		)
 
 		s.ps.Pub(WS("ANNOUNCEMENT_DELETE", announcement.String()), QueueTopicGeneric(q.ID))
@@ -1167,11 +1064,7 @@ func (s *Server) GetQueueSchedule(gs getQueueSchedule) E {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		schedules, err := gs.GetQueueSchedule(r.Context(), q.ID)
 		if err != nil {
-			s.logger.Errorw("failed to get queue schedule",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to get queue schedule", "err", err)
 			return err
 		}
 
@@ -1190,11 +1083,7 @@ func (s *Server) UpdateQueueSchedule(us updateQueueSchedule) E {
 		var schedules []string
 		err := json.NewDecoder(r.Body).Decode(&schedules)
 		if err != nil {
-			s.logger.Warnw("failed to decode schedules",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Warnw("failed to decode schedules", "err", err)
 			return StatusError{
 				http.StatusBadRequest,
 				"We couldn't read the schedules from the request body.",
@@ -1203,9 +1092,7 @@ func (s *Server) UpdateQueueSchedule(us updateQueueSchedule) E {
 
 		for i, schedule := range schedules {
 			if len(schedule) != 48 {
-				s.logger.Warnw("got schedule with length not 48",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"queue_id", q.ID,
+				s.getCtxLogger(r).Warnw("got schedule with length not 48",
 					"len", len(schedule),
 					"day", i,
 					"schedule", schedule,
@@ -1219,18 +1106,11 @@ func (s *Server) UpdateQueueSchedule(us updateQueueSchedule) E {
 
 		err = us.UpdateQueueSchedule(r.Context(), q.ID, schedules)
 		if err != nil {
-			s.logger.Errorw("failed to update schedule",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to update schedule", "err", err)
 			return err
 		}
 
-		s.logger.Infow("updated queue schedule",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-		)
+		s.getCtxLogger(r).Infow("updated queue schedule", "schedules", schedules)
 
 		s.ps.Pub(WS("REFRESH", nil), QueueTopicGeneric(q.ID))
 
@@ -1248,11 +1128,7 @@ func (s *Server) GetQueueConfiguration(gc getQueueConfiguration) E {
 
 		config, err := gc.GetQueueConfiguration(r.Context(), q.ID)
 		if err != nil {
-			s.logger.Errorw("failed to get queue configuration",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to get queue configuration", "err", err)
 			return err
 		}
 
@@ -1271,11 +1147,7 @@ func (s *Server) UpdateQueueConfiguration(uc updateQueueConfiguration) E {
 		var config QueueConfiguration
 		err := json.NewDecoder(r.Body).Decode(&config)
 		if err != nil {
-			s.logger.Warnw("failed to decode configuration",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Warnw("failed to decode configuration", "err", err)
 			return StatusError{
 				http.StatusBadRequest,
 				"We couldn't read the configuration from the request body.",
@@ -1285,11 +1157,7 @@ func (s *Server) UpdateQueueConfiguration(uc updateQueueConfiguration) E {
 		// Validate prompt format
 		var prompts []string
 		if err := json.Unmarshal(config.Prompts, &prompts); err != nil {
-			s.logger.Warnw("failed to unmarshal prompts",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Warnw("failed to unmarshal prompts", "err", err)
 			return StatusError{
 				http.StatusBadRequest,
 				"Invalid customized prompts format.",
@@ -1302,11 +1170,7 @@ func (s *Server) UpdateQueueConfiguration(uc updateQueueConfiguration) E {
 			promptSet[prompt] = struct{}{}
 		}
 		if len(prompts) != len(promptSet) {
-			s.logger.Warnw("duplicate prompts",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"prompts", prompts,
-			)
+			s.getCtxLogger(r).Warnw("duplicate prompts", "prompts", prompts)
 			return StatusError{
 				http.StatusBadRequest,
 				"Customized prompts contain duplicates.",
@@ -1315,18 +1179,11 @@ func (s *Server) UpdateQueueConfiguration(uc updateQueueConfiguration) E {
 
 		err = uc.UpdateQueueConfiguration(r.Context(), q.ID, &config)
 		if err != nil {
-			s.logger.Errorw("failed to update queue configuration",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to update queue configuration", "err", err)
 			return err
 		}
 
-		s.logger.Infow("updated queue configuration", RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"configuration", config,
-		)
+		s.getCtxLogger(r).Infow("updated queue configuration", "configuration", config)
 
 		s.ps.Pub(WS("REFRESH", nil), QueueTopicGeneric(q.ID))
 
@@ -1349,11 +1206,7 @@ func (s *Server) UpdateQueueOpenStatus(uo updateQueueOpenStatus) E {
 		case "false":
 			open = false // not technically necessary but meh
 		default:
-			s.logger.Warnw("unknown open query value",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"open", open,
-			)
+			s.getCtxLogger(r).Warnw("unknown open query value", "open", open)
 			return StatusError{
 				http.StatusBadRequest,
 				"We couldn't read the open status from the `open` query parameter.",
@@ -1362,18 +1215,11 @@ func (s *Server) UpdateQueueOpenStatus(uo updateQueueOpenStatus) E {
 
 		err := uo.UpdateQueueOpenStatus(r.Context(), q.ID, open)
 		if err != nil {
-			s.logger.Errorw("failed to update queue open status",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to update queue open status", "err", err)
 			return err
 		}
 
-		s.logger.Infow("updated queue open status", RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"open", open,
-		)
+		s.getCtxLogger(r).Infow("updated queue open status", "open", open)
 
 		s.ps.Pub(WS("QUEUE_OPEN", open), QueueTopicGeneric(q.ID))
 
@@ -1389,11 +1235,7 @@ func (s *Server) SendMessage(sm sendMessage) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"from", email,
-		)
+		l := s.getCtxLogger(r)
 
 		var message Message
 		err := json.NewDecoder(r.Body).Decode(&message)
@@ -1425,6 +1267,8 @@ func (s *Server) SendMessage(sm sendMessage) E {
 			return err
 		}
 
+		l.Infow("send DM", "message", newMessage, "to_user", message.Receiver)
+
 		s.ps.Pub(WS("MESSAGE_CREATE", newMessage), QueueTopicEmail(q.ID, message.Receiver))
 
 		return s.sendResponse(http.StatusCreated, newMessage, w, r)
@@ -1441,11 +1285,7 @@ func (s *Server) GetQueueRoster(gr getQueueRoster) E {
 
 		roster, err := gr.GetQueueRoster(r.Context(), q.ID)
 		if err != nil {
-			s.logger.Errorw("failed to fetch queue roster",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to fetch queue roster", "err", err)
 			return err
 		}
 
@@ -1463,11 +1303,7 @@ func (s *Server) GetQueueGroups(gg getQueueGroups) E {
 
 		groups, err := gg.GetQueueGroups(r.Context(), q.ID)
 		if err != nil {
-			s.logger.Errorw("failed to fetch queue groups",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to fetch queue groups", "err", err)
 			return err
 		}
 
@@ -1487,11 +1323,7 @@ func (s *Server) UpdateQueueGroups(ug updateQueueGroups) E {
 		var groups [][]string
 		err := json.NewDecoder(r.Body).Decode(&groups)
 		if err != nil {
-			s.logger.Warnw("failed to read groups from body",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Warnw("failed to read groups from body", "err", err)
 			return StatusError{
 				http.StatusBadRequest,
 				fmt.Sprintf("I couldn't read the groups you uploaded. Make sure the file is structured as an array of arrays of students' emails, each inner array representing a group. This error might help: %v", err),
@@ -1500,11 +1332,7 @@ func (s *Server) UpdateQueueGroups(ug updateQueueGroups) E {
 
 		err = ug.UpdateQueueGroups(r.Context(), q.ID, groups)
 		if err != nil {
-			s.logger.Errorw("failed to update groups",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to update groups", "err", err)
 			return err
 		}
 
@@ -1517,58 +1345,12 @@ func (s *Server) UpdateQueueGroups(ug updateQueueGroups) E {
 
 		err = ug.UpdateQueueRoster(r.Context(), q.ID, students)
 		if err != nil {
-			s.logger.Errorw("failed to update roster",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to update roster", "err", err)
 			return err
 		}
 
-		s.logger.Infow("updated groups",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"email", r.Context().Value(emailContextKey),
-		)
+		s.getCtxLogger(r).Infow("updated groups")
 		return s.sendResponse(http.StatusNoContent, nil, w, r)
-	}
-}
-
-func (s *Server) GetQueueLogs() E {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
-			"email", email,
-		)
-
-		es, err := elastic.NewClient(elastic.SetURL("http://elasticsearch:9200"))
-		if err != nil {
-			l.Errorw("couldn't set up elastic connection", "err", err)
-			return err
-		}
-
-		result, err := es.Search().
-			Index("logstash-api-*").
-			Query(elastic.NewTermQuery("queue_id.keyword", q.ID.String())).
-			Sort("@timestamp", false).
-			Size(10000).
-			Do(r.Context())
-
-		if err != nil {
-			l.Errorw("failed to fetch elastic results", "err", err)
-			return err
-		}
-
-		var output []json.RawMessage
-		for _, hit := range result.Hits.Hits {
-			output = append(output, hit.Source)
-		}
-
-		l.Infow("fetched logs", "num_entries", len(result.Hits.Hits))
-		return s.sendResponse(http.StatusOK, output, w, r)
 	}
 }
 
@@ -1581,14 +1363,7 @@ func (s *Server) SetNotHelped(sh setNotHelped) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		id := chi.URLParam(r, "entry_id")
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"entry_id", id,
-			"queue_id", q.ID,
-			"course_id", q.Course,
-			"email", email,
-		)
+		l := s.getCtxLogger(r).With("entry_id", id)
 
 		entryID, err := ksuid.Parse(id)
 		if err != nil {

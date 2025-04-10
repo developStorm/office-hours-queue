@@ -22,8 +22,7 @@ func (s *Server) AppointmentDayMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		day, err := strconv.Atoi(chi.URLParam(r, "day"))
 		if err != nil {
-			s.logger.Warnw("failed to parse day",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("failed to parse day",
 				"day", chi.URLParam(r, "day"),
 				"err", err,
 			)
@@ -44,8 +43,7 @@ func (s *Server) AppointmentTimeslotMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		timeslot, err := strconv.Atoi(chi.URLParam(r, "timeslot"))
 		if err != nil {
-			s.logger.Warnw("failed to parse timeslot",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("failed to parse timeslot",
 				"timeslot", chi.URLParam(r, "timeslot"),
 				"params", chi.RouteContext(r.Context()).URLParams,
 				"err", err,
@@ -74,8 +72,7 @@ func (s *Server) AppointmentIDMiddleware(ga getAppointment) func(http.Handler) h
 
 			appointmentID, err := ksuid.Parse(id)
 			if err != nil {
-				s.logger.Warnw("failed to parse appointment ID",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				s.getCtxLogger(r).Warnw("failed to parse appointment ID",
 					"appointment_id", id,
 					"err", err,
 				)
@@ -89,8 +86,7 @@ func (s *Server) AppointmentIDMiddleware(ga getAppointment) func(http.Handler) h
 
 			appointment, err := ga.GetAppointment(r.Context(), appointmentID)
 			if err != nil {
-				s.logger.Warnw("failed to get non-existent appointment with valid ksuid",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				s.getCtxLogger(r).Warnw("failed to get non-existent appointment with valid ksuid",
 					"appointment_id", id,
 					"err", err,
 				)
@@ -103,6 +99,7 @@ func (s *Server) AppointmentIDMiddleware(ga getAppointment) func(http.Handler) h
 			}
 
 			ctx := context.WithValue(r.Context(), appointmentContextKey, appointment)
+			ctx = context.WithValue(ctx, loggerContextKey, s.getCtxLogger(r).With("appointment_id", appointment.ID))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -133,8 +130,7 @@ func (s *Server) GetAppointments(ga getAppointments) E {
 		}
 
 		if err != nil {
-			s.logger.Errorw("failed to get appointments",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("failed to get appointments",
 				"err", err,
 			)
 			return err
@@ -157,12 +153,7 @@ func (s *Server) GetAppointmentsForCurrentUser(ga getAppointmentsForUser) E {
 		start, end := WeekdayBounds(day)
 		appointments, err := ga.GetAppointmentsForUser(r.Context(), q.ID, start, end, email)
 		if err != nil {
-			s.logger.Errorw("failed to get appointments for user",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"email", email,
-				"day", day,
-			)
+			s.getCtxLogger(r).Errorw("failed to get appointments for user", "day", day)
 			return err
 		}
 
@@ -180,11 +171,7 @@ func (s *Server) GetAppointmentSchedule(gs getAppointmentSchedule) E {
 
 		schedules, err := gs.GetAppointmentSchedule(r.Context(), q.ID)
 		if err != nil {
-			s.logger.Errorw("failed to get appointment schedule",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to get appointment schedule", "err", err)
 			return err
 		}
 
@@ -203,9 +190,7 @@ func (s *Server) GetAppointmentScheduleForDay(gs getAppointmentScheduleForDay) E
 
 		schedule, err := gs.GetAppointmentScheduleForDay(r.Context(), q.ID, day)
 		if err != nil {
-			s.logger.Errorw("failed to get appointment schedule",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"queue_id", q.ID,
+			s.getCtxLogger(r).Errorw("failed to get appointment schedule",
 				"day", day,
 				"err", err,
 			)
@@ -226,12 +211,9 @@ func (s *Server) ClaimTimeslot(cs claimTimeslot) E {
 		email := r.Context().Value(emailContextKey).(string)
 		day := r.Context().Value(appointmentDayContextKey).(int)
 		timeslot := r.Context().Value(appointmentTimeslotContextKey).(int)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
+		l := s.getCtxLogger(r).With(
 			"day", day,
 			"timeslot", timeslot,
-			"email", email,
 		)
 
 		appointment, err := cs.ClaimTimeslot(r.Context(), q.ID, day, timeslot, email)
@@ -262,19 +244,11 @@ func (s *Server) UnclaimAppointment(us unclaimAppointment) E {
 
 		deleted, err := us.UnclaimAppointment(r.Context(), appointment.ID)
 		if err != nil {
-			s.logger.Errorw("failed to remove appointment claim",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"appointment_id", appointment.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to remove appointment claim", "err", err)
 			return err
 		}
 
-		s.logger.Infow("removed appointment claim",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"appointment_id", appointment.ID,
-			"email", r.Context().Value(emailContextKey),
-		)
+		s.getCtxLogger(r).Infow("removed appointment claim")
 
 		if deleted {
 			s.ps.Pub(WS("APPOINTMENT_REMOVE", appointment), QueueTopicAdmin(q.ID))
@@ -297,13 +271,9 @@ type updateAppointmentSchedule interface {
 func (s *Server) UpdateAppointmentSchedule(us updateAppointmentSchedule) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
 		day := r.Context().Value(appointmentDayContextKey).(int)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
+		l := s.getCtxLogger(r).With(
 			"day", day,
-			"email", email,
 		)
 
 		currentSchedule, err := us.GetAppointmentScheduleForDay(r.Context(), q.ID, day)
@@ -395,12 +365,9 @@ func (s *Server) SignupForAppointment(sa signupForAppointment) E {
 		email := r.Context().Value(emailContextKey).(string)
 		name := r.Context().Value(nameContextKey).(string)
 		admin := r.Context().Value(courseAdminContextKey).(bool)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"queue_id", q.ID,
+		l := s.getCtxLogger(r).With(
 			"day", day,
 			"timeslot", timeslot,
-			"email", email,
 		)
 
 		config, err := sa.GetQueueConfiguration(r.Context(), q.ID)
@@ -572,14 +539,10 @@ func (s *Server) UpdateAppointment(ua updateAppointment) E {
 		email := r.Context().Value(emailContextKey).(string)
 		name := r.Context().Value(nameContextKey).(string)
 		admin := r.Context().Value(courseAdminContextKey).(bool)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"appointment_id", a.ID,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		if a.StudentEmail == nil {
-			l.Warnw("attempted to update deleted appointment", "appointment_id", a.ID)
+			l.Warnw("attempted to update deleted appointment")
 			return StatusError{
 				http.StatusNotFound,
 				"This appointment doesn't exist. Perhaps it was already deleted?",
@@ -739,11 +702,7 @@ func (s *Server) RemoveAppointmentSignup(rs removeAppointmentSignup) E {
 		q := r.Context().Value(queueContextKey).(*Queue)
 		a := r.Context().Value(appointmentContextKey).(*AppointmentSlot)
 		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"appointment_id", a.ID,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		if a.StudentEmail == nil {
 			l.Warnw("attempted to remove signup for already deleted appointment")

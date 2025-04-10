@@ -90,8 +90,7 @@ func (s *Server) sendResponse(code int, data interface{}, w http.ResponseWriter,
 		var err error
 		body, err = json.Marshal(data)
 		if err != nil {
-			s.logger.Errorw("failed to marshal response",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("failed to marshal response",
 				"err", err,
 			)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -102,8 +101,7 @@ func (s *Server) sendResponse(code int, data interface{}, w http.ResponseWriter,
 	w.WriteHeader(code)
 	_, err := w.Write(body)
 	if err != nil {
-		s.logger.Warnw("failed to write response to client",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+		s.getCtxLogger(r).Warnw("failed to write response to client",
 			"err", err,
 		)
 	}

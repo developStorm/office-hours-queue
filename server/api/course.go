@@ -22,11 +22,11 @@ type getCourse interface {
 func (s *Server) CourseIDMiddleware(gc getCourse) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			l := s.getCtxLogger(r)
 			idString := chi.URLParam(r, "id")
 			id, err := ksuid.Parse(idString)
 			if err != nil {
-				s.logger.Warnw("failed to parse course id",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				l.Warnw("failed to parse course id",
 					"course_id", idString,
 				)
 				s.errorMessage(
@@ -39,8 +39,7 @@ func (s *Server) CourseIDMiddleware(gc getCourse) func(http.Handler) http.Handle
 
 			c, err := gc.GetCourse(r.Context(), id)
 			if errors.Is(err, sql.ErrNoRows) {
-				s.logger.Warnw("failed to get non-existent course with valid ksuid",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				l.Warnw("failed to get non-existent course with valid ksuid",
 					"course_id", idString,
 				)
 				s.errorMessage(
@@ -50,8 +49,7 @@ func (s *Server) CourseIDMiddleware(gc getCourse) func(http.Handler) http.Handle
 				)
 				return
 			} else if err != nil {
-				s.logger.Errorw("failed to get queue",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				l.Errorw("failed to get queue",
 					"course_id", idString,
 					"err", err,
 				)
@@ -60,6 +58,9 @@ func (s *Server) CourseIDMiddleware(gc getCourse) func(http.Handler) http.Handle
 			}
 
 			ctx := context.WithValue(r.Context(), courseContextKey, c)
+			ctx = context.WithValue(ctx, loggerContextKey, l.With(
+				"course_id", c.ID,
+			))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -92,10 +93,7 @@ func (s *Server) CheckCourseAdmin(ca courseAdmin) func(http.Handler) http.Handle
 
 			admin, err := ca.CourseAdmin(r.Context(), courseID, email)
 			if err != nil {
-				s.logger.Errorw("failed to check course admin status",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"course_id", courseID,
-					"email", email,
+				s.getCtxLogger(r).Errorw("failed to check course admin status",
 					"err", err,
 				)
 				s.internalServerError(w, r)
@@ -110,23 +108,9 @@ func (s *Server) CheckCourseAdmin(ca courseAdmin) func(http.Handler) http.Handle
 
 func (s *Server) EnsureCourseAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var courseID ksuid.KSUID
-		course, ok := r.Context().Value(courseContextKey).(*Course)
-		if ok {
-			courseID = course.ID
-		} else {
-			q := r.Context().Value(queueContextKey).(*Queue)
-			courseID = q.Course
-		}
-
-		email := r.Context().Value(emailContextKey).(string)
 		admin := r.Context().Value(courseAdminContextKey).(bool)
 		if !admin {
-			s.logger.Warnw("non-admin attempting to access resource requiring course admin",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"course_id", courseID,
-				"email", email,
-			)
+			s.getCtxLogger(r).Warnw("non-admin attempting to access resource requiring course admin")
 			s.errorMessage(
 				http.StatusForbidden,
 				"You shouldn't be here. :)",
@@ -135,11 +119,7 @@ func (s *Server) EnsureCourseAdmin(next http.Handler) http.Handler {
 			return
 		}
 
-		s.logger.Infow("entering course admin context",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", courseID,
-			"email", email,
-		)
+		s.getCtxLogger(r).Info("entering course admin context")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -152,8 +132,7 @@ func (s *Server) GetCourses(gc getCourses) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		courses, err := gc.GetCourses(r.Context())
 		if err != nil {
-			s.logger.Errorw("failed to fetch courses from DB",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("failed to fetch courses from DB",
 				"err", err,
 			)
 			return err
@@ -180,11 +159,7 @@ func (s *Server) GetQueues(gq getQueues) E {
 
 		queues, err := gq.GetQueues(r.Context(), c.ID)
 		if err != nil {
-			s.logger.Errorw("failed to get queues from course",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"course_id", c.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to get queues from course", "err", err)
 			return err
 		}
 
@@ -201,8 +176,7 @@ func (s *Server) AddCourse(ac addCourse) E {
 		var course Course
 		err := json.NewDecoder(r.Body).Decode(&course)
 		if err != nil {
-			s.logger.Warnw("failed to decode course from body",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("failed to decode course from body",
 				"err", err,
 			)
 			return StatusError{
@@ -212,8 +186,7 @@ func (s *Server) AddCourse(ac addCourse) E {
 		}
 
 		if course.ShortName == "" || course.FullName == "" {
-			s.logger.Warnw("received incomplete course",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("received incomplete course",
 				"course", course,
 			)
 			return StatusError{
@@ -224,18 +197,13 @@ func (s *Server) AddCourse(ac addCourse) E {
 
 		newCourse, err := ac.AddCourse(r.Context(), course.ShortName, course.FullName)
 		if err != nil {
-			s.logger.Errorw("failed to create course",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("failed to create course",
 				"err", err,
 			)
 			return err
 		}
 
-		s.logger.Infow("created course",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", newCourse.ID,
-			"email", r.Context().Value(emailContextKey).(string),
-		)
+		s.getCtxLogger(r).Infow("created course", "course_id", newCourse.ID)
 		return s.sendResponse(http.StatusCreated, newCourse, w, r)
 	}
 }
@@ -251,8 +219,7 @@ func (s *Server) UpdateCourse(uc updateCourse) E {
 		var bodyCourse Course
 		err := json.NewDecoder(r.Body).Decode(&bodyCourse)
 		if err != nil {
-			s.logger.Warnw("failed to decode course from body",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("failed to decode course from body",
 				"err", err,
 			)
 			return StatusError{
@@ -262,8 +229,7 @@ func (s *Server) UpdateCourse(uc updateCourse) E {
 		}
 
 		if bodyCourse.ShortName == "" || bodyCourse.FullName == "" {
-			s.logger.Warnw("received incomplete course",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Warnw("received incomplete course",
 				"course", bodyCourse,
 			)
 			return StatusError{
@@ -274,18 +240,13 @@ func (s *Server) UpdateCourse(uc updateCourse) E {
 
 		err = uc.UpdateCourse(r.Context(), course.ID, bodyCourse.ShortName, bodyCourse.FullName)
 		if err != nil {
-			s.logger.Errorw("failed to update course",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("failed to update course",
 				"err", err,
 			)
 			return err
 		}
 
-		s.logger.Infow("updated course",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", course.ID,
-			"email", r.Context().Value(emailContextKey).(string),
-		)
+		s.getCtxLogger(r).Infow("updated course")
 		return s.sendResponse(http.StatusNoContent, nil, w, r)
 	}
 }
@@ -300,19 +261,11 @@ func (s *Server) DeleteCourse(dc deleteCourse) E {
 
 		err := dc.DeleteCourse(r.Context(), course.ID)
 		if err != nil {
-			s.logger.Errorw("failed to delete course",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"email", r.Context().Value(emailContextKey).(string),
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to delete course", "err", err)
 			return err
 		}
 
-		s.logger.Infow("deleted course",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", course.ID,
-			"email", r.Context().Value(emailContextKey).(string),
-		)
+		s.getCtxLogger(r).Infow("deleted course")
 		return s.sendResponse(http.StatusNoContent, nil, w, r)
 	}
 }
@@ -334,10 +287,7 @@ type addQueue interface {
 func (s *Server) AddQueue(aq addQueue) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		c := r.Context().Value(courseContextKey).(*Course)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", c.ID,
-		)
+		l := s.getCtxLogger(r)
 
 		var queue Queue
 		err := json.NewDecoder(r.Body).Decode(&queue)
@@ -370,10 +320,7 @@ func (s *Server) AddQueue(aq addQueue) E {
 			l.Errorw("failed to create queue", "err", err)
 			return err
 		}
-		l.Infow("created queue",
-			"queue_id", newQueue.ID,
-			"email", r.Context().Value(emailContextKey).(string),
-		)
+		l.Infow("created queue", "queue_id", newQueue.ID)
 
 		for day := 0; day < 7; day++ {
 			err = aq.AddQueueSchedule(r.Context(), newQueue.ID, day, defaultQueueSchedule)
@@ -411,11 +358,7 @@ func (s *Server) GetCourseAdmins(ga getCourseAdmins) E {
 
 		admins, err := ga.GetCourseAdmins(r.Context(), c.ID)
 		if err != nil {
-			s.logger.Errorw("failed to get course admins",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-				"course_id", c.ID,
-				"err", err,
-			)
+			s.getCtxLogger(r).Errorw("failed to get course admins", "err", err)
 			return err
 		}
 
@@ -430,12 +373,7 @@ type addCourseAdmins interface {
 func (s *Server) AddCourseAdmins(aa addCourseAdmins) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		c := r.Context().Value(courseContextKey).(*Course)
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", c.ID,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		var admins []string
 		err := json.NewDecoder(r.Body).Decode(&admins)
@@ -468,12 +406,7 @@ func (s *Server) AddCourseAdmins(aa addCourseAdmins) E {
 func (s *Server) UpdateCourseAdmins(aa addCourseAdmins) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		c := r.Context().Value(courseContextKey).(*Course)
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", c.ID,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		var admins []string
 		err := json.NewDecoder(r.Body).Decode(&admins)
@@ -503,12 +436,7 @@ type removeCourseAdmins interface {
 func (s *Server) RemoveCourseAdmins(ra removeCourseAdmins) E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		c := r.Context().Value(courseContextKey).(*Course)
-		email := r.Context().Value(emailContextKey).(string)
-		l := s.logger.With(
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"course_id", c.ID,
-			"email", email,
-		)
+		l := s.getCtxLogger(r)
 
 		var admins []string
 		err := json.NewDecoder(r.Body).Decode(&admins)

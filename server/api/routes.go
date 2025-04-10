@@ -127,7 +127,7 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 	s.oidcProvider = oidcProvider
 
 	s.Router = chi.NewRouter()
-	s.Router.Use(instrumenter, ksuidInserter, s.recoverMiddleware, s.transaction(q), s.sessionRetriever)
+	s.Router.Use(instrumenter, ksuidInserter, s.setupCtxLogger, s.recoverMiddleware, s.transaction(q), s.sessionRetriever)
 
 	// Course endpoints
 	s.Route("/courses", func(r chi.Router) {
@@ -189,9 +189,6 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 
 		// Get queue's stack (queue admin)
 		r.With(s.ValidLoginMiddleware, s.EnsureCourseAdmin).Method("GET", "/stack", s.GetQueueStack(q))
-
-		// Get queue logs (course admin)
-		r.With(s.ValidLoginMiddleware, s.EnsureCourseAdmin).Method("GET", "/logs", s.GetQueueLogs())
 
 		// Entry by ID endpoints
 		r.Route("/entries", func(r chi.Router) {
