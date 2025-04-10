@@ -8,11 +8,19 @@
 			<div class="field" v-for="(prompt, i) in queue.config.prompts" :key="i">
 				<label class="label">{{ prompt }}</label>
 				<div class="control has-icons-left">
-					<input class="input" v-model="customResponses[i]" type="text" />
+					<input
+						class="input"
+						v-model="customResponses[i]"
+						type="text"
+						:class="{ 'is-danger': isDescriptionTooLong }"
+					/>
 					<span class="icon is-small is-left">
 						<font-awesome-icon icon="question" />
 					</span>
 				</div>
+			</div>
+			<div class="help has-text-danger" v-if="isDescriptionTooLong">
+				Characters: {{ totalCustomResponseLength }}/{{ maxDescriptionLength }}
 			</div>
 		</template>
 		<div class="field" v-else>
@@ -23,10 +31,14 @@
 					v-model="description"
 					type="text"
 					placeholder="Help us help you—please be descriptive!"
+					:class="{ 'is-danger': isDescriptionTooLong }"
 				/>
 				<span class="icon is-small is-left">
 					<font-awesome-icon icon="question" />
 				</span>
+			</div>
+			<div class="help has-text-danger" v-if="isDescriptionTooLong">
+				Characters: {{ description.length }}/{{ maxDescriptionLength }}
 			</div>
 		</div>
 		<div
@@ -39,7 +51,12 @@
 			<label class="label" v-else-if="!queue.config.virtual">Location</label>
 			<label class="label" v-else>Meeting Link</label>
 			<div class="control has-icons-left">
-				<input class="input" v-model="location" type="text" />
+				<input
+					class="input"
+					v-model="location"
+					type="text"
+					:class="{ 'is-danger': isLocationTooLong }"
+				/>
 				<span class="icon is-small is-left">
 					<b-skeleton
 						position="is-centered"
@@ -52,6 +69,9 @@
 					/>
 					<font-awesome-icon icon="link" v-else />
 				</span>
+			</div>
+			<div class="help has-text-danger" v-if="isLocationTooLong">
+				Characters: {{ location.length }}/{{ maxLocationLength }}
 			</div>
 		</div>
 		<div class="field">
@@ -69,6 +89,7 @@
 					class="button is-warning level-item"
 					@click="updateRequest"
 					v-else-if="myEntryModified"
+					:disabled="isDescriptionTooLong || isLocationTooLong"
 				>
 					<span class="icon"><font-awesome-icon icon="edit" /></span>
 					<span>Update Request</span>
@@ -121,6 +142,10 @@ export default class QueueSignup extends Vue {
 	location = '';
 	customResponses: string[] = [];
 
+	// Character limits matching server-side validation
+	readonly maxDescriptionLength = 2000;
+	readonly maxLocationLength = 300;
+
 	@Prop({ required: true }) queue!: OrderedQueue;
 	@Prop({ required: true }) time!: Moment;
 
@@ -164,6 +189,22 @@ export default class QueueSignup extends Vue {
 		}
 	}
 
+	get totalCustomResponseLength(): number {
+		// Calculate the total length of the stringified JSON
+		if (!this.customResponses.length) return 0;
+		return this.descWithPromptsToDescription().length;
+	}
+
+	get isDescriptionTooLong(): boolean {
+		return this.hasDescWithPrompts()
+			? this.totalCustomResponseLength > this.maxDescriptionLength
+			: this.description.length > this.maxDescriptionLength;
+	}
+
+	get isLocationTooLong(): boolean {
+		return this.location.length > this.maxLocationLength;
+	}
+
 	get canSignUp(): boolean {
 		// Do not change the order of the expressions in this boolean
 		// expression. Because myEntry is a computed property, it seems
@@ -185,7 +226,10 @@ export default class QueueSignup extends Vue {
 			this.$root.$data.loggedIn &&
 			this.queue.isOpen(this.time) &&
 			isValidDescription &&
-			(this.location.trim() !== '' || !this.queue.config?.enableLocationField)
+			(this.location.trim() !== '' ||
+				!this.queue.config?.enableLocationField) &&
+			!this.isDescriptionTooLong &&
+			!this.isLocationTooLong
 		);
 	}
 

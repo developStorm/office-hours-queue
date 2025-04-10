@@ -27,6 +27,10 @@ type getQueue interface {
 
 const queueContextKey = "queue"
 
+// Maximum character limits for queue entry fields
+const maxDescriptionLength = 2000
+const maxLocationLength = 300
+
 func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -480,7 +484,13 @@ type addQueueEntry interface {
 // validateQueueEntryDescription validates that:
 // - If prompts are configured, description must be valid JSON matching prompts
 // - If no prompts configured, description must not be JSON
+// - Description must not exceed the maximum character limit
 func validateQueueEntryDescription(description string, prompts []string) error {
+	// Check length first
+	if len(description) > maxDescriptionLength {
+		return fmt.Errorf("description is too long (max %d characters)", maxDescriptionLength)
+	}
+
 	var jsonData map[string]string
 
 	if err := json.Unmarshal([]byte(description), &jsonData); err == nil {
@@ -564,6 +574,14 @@ func (s *Server) AddQueueEntry(ae addQueueEntry) E {
 			return StatusError{
 				http.StatusBadRequest,
 				"It looks like you left out some fields in the queue entry!",
+			}
+		}
+
+		if len(entry.Location) > maxLocationLength {
+			l.Warnw("location too long", "location_length", len(entry.Location))
+			return StatusError{
+				http.StatusBadRequest,
+				fmt.Sprintf("Location field is too long (max %d characters)", maxLocationLength),
 			}
 		}
 
@@ -678,6 +696,15 @@ func (s *Server) UpdateQueueEntry(ue updateQueueEntry) E {
 			return StatusError{
 				http.StatusBadRequest,
 				"It looks like you left out some fields in the queue entry!",
+			}
+		}
+
+		// Check location length
+		if len(newEntry.Location) > maxLocationLength {
+			l.Warnw("location too long", "location_length", len(newEntry.Location))
+			return StatusError{
+				http.StatusBadRequest,
+				fmt.Sprintf("Location field is too long (max %d characters)", maxLocationLength),
 			}
 		}
 
