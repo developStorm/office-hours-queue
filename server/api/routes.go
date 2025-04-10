@@ -127,7 +127,7 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 	s.oidcProvider = oidcProvider
 
 	s.Router = chi.NewRouter()
-	s.Router.Use(instrumenter, ksuidInserter, s.recoverMiddleware, s.transaction(q), s.sessionRetriever)
+	s.Router.Use(instrumenter, ksuidInserter, s.setupCtxLogger, s.recoverMiddleware, s.transaction(q), s.sessionRetriever)
 
 	// Course endpoints
 	s.Route("/courses", func(r chi.Router) {

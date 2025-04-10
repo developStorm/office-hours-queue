@@ -6,9 +6,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/segmentio/ksuid"
+	"go.uber.org/zap"
 )
 
 const RequestIDContextKey = "request_id"
+const loggerContextKey = "logger"
 
 func ksuidInserter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -60,8 +62,7 @@ func (s *Server) transaction(tr transactioner) func(http.Handler) http.Handler {
 				// The handler already wrote a status code, so the best we can
 				// do is log the failed rollback.
 				if err != nil {
-					s.logger.Errorw("transaction rollback failed",
-						RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+					s.getCtxLogger(r).Errorw("transaction rollback failed",
 						"err", err,
 					)
 				}
@@ -72,8 +73,7 @@ func (s *Server) transaction(tr transactioner) func(http.Handler) http.Handler {
 			if err != nil {
 				// The handler already wrote a status code, so the best we can
 				// do is log the failed commit.
-				s.logger.Errorw("transaction commit failed",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				s.getCtxLogger(r).Errorw("transaction commit failed",
 					"err", err,
 				)
 			}
@@ -85,7 +85,15 @@ func (s *Server) sessionRetriever(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := s.sessions.Get(r, "session")
 		if err != nil {
-			next.ServeHTTP(w, r)
+			s.getCtxLogger(r).Infow("got invalid session",
+				"err", err,
+			)
+			http.SetCookie(w, emptySessionCookie)
+			s.errorMessage(
+				http.StatusUnauthorized,
+				"Try logging in again.",
+				w, r,
+			)
 			return
 		}
 
@@ -118,6 +126,7 @@ func (s *Server) sessionRetriever(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, firstNameContextKey, firstName)
 		ctx = context.WithValue(ctx, sessionContextKey, session.Values)
 		ctx = context.WithValue(ctx, GroupsContextKey, groups)
+		ctx = context.WithValue(ctx, loggerContextKey, s.getCtxLogger(r).With("email", email))
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -127,8 +136,7 @@ func (s *Server) recoverMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if msg := recover(); msg != nil {
-				s.logger.Errorw("recovered panic",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+				s.getCtxLogger(r).Errorw("recovered panic",
 					"panic_message", msg,
 				)
 				s.internalServerError(w, r)
@@ -149,10 +157,7 @@ func (s *Server) EnsureSiteAdmin(sa siteAdmin, shouldLog bool) func(http.Handler
 			email := r.Context().Value(emailContextKey).(string)
 			admin, err := sa.SiteAdmin(r.Context(), email)
 			if err != nil || !admin {
-				s.logger.Warnw("non-admin attempting to access resource requiring site admin",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"email", email,
-				)
+				s.getCtxLogger(r).Warnw("non-admin attempting to access resource requiring site admin")
 				s.errorMessage(
 					http.StatusForbidden,
 					"You're not supposed to be here. :)",
@@ -162,13 +167,35 @@ func (s *Server) EnsureSiteAdmin(sa siteAdmin, shouldLog bool) func(http.Handler
 			}
 
 			if shouldLog {
-				s.logger.Infow("entering site admin context",
-					RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-					"email", email,
-				)
+				s.getCtxLogger(r).Infow("entering site admin context")
 			}
 
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// setupCtxLogger adds consistent logging fields to all requests
+func (s *Server) setupCtxLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// WARNING: IP here only used for debug tracing, and should not be
+		// used for any kind of authentication as it can be spoofed.
+		ctxLogger := s.logger.With(
+			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			"trace_id", r.Header.Get("X-Forwarded-For"),
+		)
+		ctx := context.WithValue(r.Context(), loggerContextKey, ctxLogger)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// getCtxLogger is a helper function to retrieve the enhanced logger from context
+func (s *Server) getCtxLogger(r *http.Request) *zap.SugaredLogger {
+	if logger, ok := r.Context().Value(loggerContextKey).(*zap.SugaredLogger); ok {
+		return logger
+	}
+
+	// Fallback to the default logger if not found in context (shouldn't happen?)
+	return s.logger.With("fallback_logger", "true")
 }

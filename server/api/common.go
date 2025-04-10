@@ -66,6 +66,12 @@ type ErrorMessage struct {
 }
 
 func (s *Server) errorMessage(status int, message string, w http.ResponseWriter, r *http.Request) {
+	logger := s.getCtxLogger(r)
+	logger.Warnw("returning error response",
+		"status", status,
+		"message", message,
+	)
+
 	s.sendResponse(
 		status,
 		ErrorMessage{Message: message},
@@ -74,6 +80,9 @@ func (s *Server) errorMessage(status int, message string, w http.ResponseWriter,
 }
 
 func (s *Server) internalServerError(w http.ResponseWriter, r *http.Request) {
+	logger := s.getCtxLogger(r)
+	logger.Errorw("internal server error")
+
 	s.sendResponse(
 		http.StatusInternalServerError,
 		ErrorMessage{
@@ -90,8 +99,7 @@ func (s *Server) sendResponse(code int, data interface{}, w http.ResponseWriter,
 		var err error
 		body, err = json.Marshal(data)
 		if err != nil {
-			s.logger.Errorw("failed to marshal response",
-				RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+			s.getCtxLogger(r).Errorw("failed to marshal response",
 				"err", err,
 			)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -102,8 +110,7 @@ func (s *Server) sendResponse(code int, data interface{}, w http.ResponseWriter,
 	w.WriteHeader(code)
 	_, err := w.Write(body)
 	if err != nil {
-		s.logger.Warnw("failed to write response to client",
-			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
+		s.getCtxLogger(r).Warnw("failed to write response to client",
 			"err", err,
 		)
 	}
