@@ -10,11 +10,11 @@ updates:
       - "npm"
     ignore:
       - dependency-name: "vue"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "vue*"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "*vue*"
-        update-types: ["version-update:semver-major"]
+        versions: ["3.x", ">=3.0.0"]
+      - dependency-name: "@vue/*"
+        versions: [">=5.0.0"]
+      - dependency-name: "vue-*"
+        versions: [">=3.0.0"]
       - dependency-name: "*fortawesome*"
         update-types: ["version-update:semver-major"]
 
