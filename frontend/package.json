@@ -18,7 +18,7 @@
 		"buefy": "^0.9.17",
 		"core-js": "^3.41.0",
 		"js-file-download": "^0.4.12",
-		"json-2-csv": "^3.10.2",
+		"json-2-csv": "^5.5.9",
 		"linkify": "^0.2.1",
 		"linkifyjs": "^2.1.9",
 		"moment": "^2.30.1",
