@@ -216,6 +216,7 @@
 import { Component, Vue } from 'vue-property-decorator';
 import Course from './types/Course';
 import Queue from './types/Queue';
+import { shouldShowCourses } from '@/util/SidebarVisibility';
 
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
@@ -255,8 +256,9 @@ export default class App extends Vue {
 		}
 
 		// Stop jitter on page load
-		this.$root.$data.showCourses = !(
-			this.$route.path.includes('/queues/') && window.innerWidth < 769
+		this.$root.$data.showCourses = shouldShowCourses(
+			this,
+			this.$root.$data.queues[this.$route.params.qid]
 		);
 
 		this.restart();
@@ -303,7 +305,7 @@ export default class App extends Vue {
 	}
 
 	goToQueue(q: Queue) {
-		if (window.innerWidth < 769) this.$root.$data.showCourses = false;
+		this.$root.$data.showCourses = shouldShowCourses(this, q);
 		this.$router.push('/queues/' + q.id);
 	}
 

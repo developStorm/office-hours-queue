@@ -1,7 +1,7 @@
 <template>
 	<div class="box entry">
 		<article class="media">
-			<div class="media-content">
+			<div class="media-content" style="overflow-x: visible">
 				<div class="content">
 					<div class="level icon-row is-mobile">
 						<div class="level-left">
@@ -513,6 +513,7 @@ export default class QueueEntryDisplay extends Vue {
 	overflow-wrap: break-word;
 	word-break: break-word;
 	hyphens: auto;
+	flex-direction: column;
 }
 
 .link-in-container {

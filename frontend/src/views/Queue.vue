@@ -64,6 +64,7 @@ import AppointmentsQueueDisplay from '@/components/appointments/AppointmentsQueu
 import QueueManage from '@/components/admin/QueueManage.vue';
 import ErrorDialog from '@/util/ErrorDialog';
 import { DialogProgrammatic as Dialog } from 'buefy';
+import { shouldShowCourses } from '@/util/SidebarVisibility';
 
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faCog, faEthernet } from '@fortawesome/free-solid-svg-icons';
@@ -88,7 +89,8 @@ export default class QueuePage extends Vue {
 	timeUpdater!: number;
 
 	created() {
-		this.$root.$data.showCourses = window.innerWidth >= 769;
+		// Decide whether to show the sidebar based on our utility function
+		this.$root.$data.showCourses = shouldShowCourses(this, this.queue);
 
 		if (this.queue === undefined) {
 			this.$buefy.toast.open({
