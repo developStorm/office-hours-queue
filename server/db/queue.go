@@ -409,7 +409,7 @@ func (s *Server) RemoveQueueEntry(ctx context.Context, entry ksuid.KSUID, remove
 	tx := getTransaction(ctx)
 	var e api.RemovedQueueEntry
 	err := tx.GetContext(ctx, &e,
-		"UPDATE queue_entries SET pinned=FALSE, active=NULL, removed_at=NOW(), removed_by=$1, helped=TRUE WHERE active IS NOT NULL AND id=$2 RETURNING *",
+		"UPDATE queue_entries SET pinned=FALSE, active=NULL, helping='', removed_at=NOW(), removed_by=$1, helped=TRUE WHERE active IS NOT NULL AND id=$2 RETURNING *",
 		remover, entry,
 	)
 	return &e, err
@@ -558,7 +558,7 @@ func (s *Server) ViewMessage(ctx context.Context, queue ksuid.KSUID, receiver st
 func (s *Server) QueueStats() ([]api.QueueStats, error) {
 	var queues []api.QueueStats
 
-	rows, err := s.DB.Query(`SELECT q.id, c.id, COUNT(e.id) FROM queues q LEFT JOIN queue_entries e ON e.queue=q.id AND e.active IS NOT NULL AND NOT e.helping
+	rows, err := s.DB.Query(`SELECT q.id, c.id, COUNT(e.id) FROM queues q LEFT JOIN queue_entries e ON e.queue=q.id AND e.active IS NOT NULL AND e.helping=''
 							 LEFT JOIN courses c ON c.id=q.course WHERE q.active AND q.type='ordered' GROUP BY q.id, c.id`)
 
 	if err != nil {

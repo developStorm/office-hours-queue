@@ -114,7 +114,7 @@ func (q *QueueEntry) Anonymized() *QueueEntry {
 		Queue:    q.Queue,
 		Priority: q.Priority,
 		Pinned:   q.Pinned,
-		Helping:  q.Helping,
+		Helping:  helping,
 	}
 }
 

@@ -136,7 +136,7 @@
 									class="button is-success"
 									:class="{ 'is-loading': helpingRequestRunning }"
 									v-on:click="setHelping(true)"
-									v-if="admin && !entry.helping"
+									v-if="admin && !entry.isBeingHelped"
 								>
 									<span class="icon"
 										><font-awesome-icon icon="hands-helping"
@@ -246,7 +246,7 @@
 							/>
 						</b-tooltip>
 					</div>
-					<div class="is-pulled-right" key="helping" v-if="isBeingHelped">
+					<div class="is-pulled-right" key="helping" v-if="entry.isBeingHelped">
 						<b-tooltip
 							:label="`This student is currently being helped by ${entry.helping}`"
 							position="is-left"
@@ -386,10 +386,6 @@ export default class QueueEntryDisplay extends Vue {
 
 	get hasCustomPrompts(): boolean {
 		return Object.keys(this.promptResponses).length > 0;
-	}
-
-	get isBeingHelped() {
-		return this.entry.helping && this.entry.helping.length > 0;
 	}
 
 	removeRequestRunning = false;
