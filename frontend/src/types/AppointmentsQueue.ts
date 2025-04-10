@@ -118,9 +118,8 @@ export class AppointmentsSchedule {
 
 	addAppointment(appointment: Appointment) {
 		// First look for appointment to update, if we already know about it
-		const updated = this.timeslots[appointment.timeslot].updateAppointment(
-			appointment
-		);
+		const updated =
+			this.timeslots[appointment.timeslot].updateAppointment(appointment);
 
 		if (updated === undefined) {
 			this.timeslots[appointment.timeslot].addAppointment(appointment);
@@ -190,10 +189,7 @@ export class AppointmentsQueue extends Queue {
 					'schedule',
 					new AppointmentsSchedule(
 						this.day(time),
-						time
-							.clone()
-							.tz(moment.tz.guess())
-							.startOf('day'),
+						time.clone().tz(moment.tz.guess()).startOf('day'),
 						schedule['duration'],
 						schedule['padding'],
 						schedule['schedule']
@@ -207,9 +203,6 @@ export class AppointmentsQueue extends Queue {
 	}
 
 	day(time: Moment) {
-		return time
-			.clone()
-			.tz(moment.tz.guess())
-			.day();
+		return time.clone().tz(moment.tz.guess()).day();
 	}
 }

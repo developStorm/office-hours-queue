@@ -118,7 +118,7 @@
 									class="button is-danger"
 									v-else-if="
 										selectedAppointment.staffEmail ===
-											$root.$data.userInfo.email
+										$root.$data.userInfo.email
 									"
 									@click="unclaimAppointment"
 								>
@@ -139,7 +139,9 @@
 								@click="claimTimeslot"
 								v-if="!selectedAppointmentInPast"
 							>
-								<span class="icon"><font-awesome-icon icon="hand-paper"/></span>
+								<span class="icon"
+									><font-awesome-icon icon="hand-paper"
+								/></span>
 								<span>Claim</span>
 							</button>
 						</div>
@@ -153,7 +155,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import { Moment } from 'moment';
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import linkifyStr from 'linkifyjs/string';
 import { AppointmentsQueue } from '@/types/AppointmentsQueue';
 import AppointmentsDisplay from '@/components/appointments/AppointmentsDisplay.vue';

@@ -4,14 +4,14 @@
 			<div class="buttons top-right" v-if="admin">
 				<b-tooltip label="Number of active connections to this queue">
 					<button class="button is-white no-hover" v-if="queue !== null">
-						<span class="icon"><font-awesome-icon icon="ethernet"/></span>
+						<span class="icon"><font-awesome-icon icon="ethernet" /></span>
 						<span
 							><b>{{ queue.websocketConnections }}</b></span
 						>
 					</button></b-tooltip
 				>
 				<button class="button is-light" @click="openManageDialog">
-					<span class="icon"><font-awesome-icon icon="cog"/></span>
+					<span class="icon"><font-awesome-icon icon="cog" /></span>
 					<span>Manage Queue</span>
 				</button>
 			</div>
@@ -58,9 +58,6 @@
 import Vue from 'vue';
 import { Component, Prop } from 'vue-property-decorator';
 import moment, { Moment } from 'moment-timezone';
-import Queue from '@/types/Queue';
-import OrderedQueue from '@/types/OrderedQueue';
-import Announcement from '@/types/Announcement';
 import AnnouncementDisplay from '@/components/AnnouncementDisplay.vue';
 import OrderedQueueDisplay from '@/components/ordered/OrderedQueue.vue';
 import AppointmentsQueueDisplay from '@/components/appointments/AppointmentsQueue.vue';

@@ -62,7 +62,7 @@
 					@click="signUp"
 					v-if="myEntry === null"
 				>
-					<span class="icon"><font-awesome-icon icon="user-plus"/></span>
+					<span class="icon"><font-awesome-icon icon="user-plus" /></span>
 					<span>Sign Up</span>
 				</button>
 				<button
@@ -70,11 +70,11 @@
 					@click="updateRequest"
 					v-else-if="myEntryModified"
 				>
-					<span class="icon"><font-awesome-icon icon="edit"/></span>
+					<span class="icon"><font-awesome-icon icon="edit" /></span>
 					<span>Update Request</span>
 				</button>
 				<button class="button is-success level-item" disabled="true" v-else>
-					<span class="icon"><font-awesome-icon icon="check"/></span>
+					<span class="icon"><font-awesome-icon icon="check" /></span>
 					<span>On queue at position #{{ this.myEntryIndex + 1 }}</span>
 				</button>
 				<p class="level-item" v-if="!$root.$data.loggedIn">

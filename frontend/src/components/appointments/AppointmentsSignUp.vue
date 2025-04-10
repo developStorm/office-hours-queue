@@ -39,8 +39,8 @@
 			<div class="field-label">
 				<label class="label">Appointments</label>
 			</div>
-			<div class="field-body" style="min-width: 0;">
-				<div class="field" style="width: 100%;">
+			<div class="field-body" style="min-width: 0">
+				<div class="field" style="width: 100%">
 					<div class="box">
 						<transition name="fade" mode="out-in">
 							<appointments-display
@@ -70,7 +70,7 @@
 							v-if="selectedAppointment === null"
 							disabled
 						>
-							<span class="icon"><font-awesome-icon icon="user-clock"/></span>
+							<span class="icon"><font-awesome-icon icon="user-clock" /></span>
 							<span>Select a time slot!</span>
 						</button>
 						<button
@@ -94,11 +94,11 @@
 							v-else-if="myAppointmentModified"
 							@click="updateAppointment"
 						>
-							<span class="icon"><font-awesome-icon icon="edit"/></span>
+							<span class="icon"><font-awesome-icon icon="edit" /></span>
 							<span>Update Appointment</span>
 						</button>
 						<button class="button is-success level-item" disabled="true" v-else>
-							<span class="icon"><font-awesome-icon icon="check"/></span>
+							<span class="icon"><font-awesome-icon icon="check" /></span>
 							<span
 								>Scheduled for
 								{{ myAppointment.scheduledTime.format('LT') }}</span

@@ -6,9 +6,7 @@ import {
 	ToastProgrammatic as Toast,
 } from 'buefy';
 import moment, { Moment } from 'moment-timezone';
-import linkifyStr from 'linkifyjs/string';
 import g from '../main';
-import ErrorDialog from '@/util/ErrorDialog';
 import EscapeHTML from '@/util/Sanitization';
 
 export default class OrderedQueue extends Queue {

@@ -144,8 +144,6 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import moment, { Moment } from 'moment-timezone';
-import Queue from '@/types/Queue';
 import EscapeHTML from '@/util/Sanitization';
 
 import { library } from '@fortawesome/fontawesome-svg-core';

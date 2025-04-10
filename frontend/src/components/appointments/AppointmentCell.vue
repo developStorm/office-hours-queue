@@ -5,12 +5,12 @@
 		:style="'width: ' + cellWidth + 'em; height: ' + cellHeight + 'em'"
 		:disabled="
 			!admin &&
-				(appointmentSlot.scheduledTime.clone() < time ||
-					(appointmentSlot.filledByStudent &&
-						!(
-							$root.$data.userInfo.email !== undefined &&
-							appointmentSlot.studentEmail === $root.$data.userInfo.email
-						)))
+			(appointmentSlot.scheduledTime.clone() < time ||
+				(appointmentSlot.filledByStudent &&
+					!(
+						$root.$data.userInfo.email !== undefined &&
+						appointmentSlot.studentEmail === $root.$data.userInfo.email
+					)))
 		"
 		@mouseover="$emit('hover', true)"
 		@mouseleave="$emit('hover', false)"
@@ -46,10 +46,9 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
-import moment, { Moment } from 'moment-timezone';
+import { Component, Prop, Vue } from 'vue-property-decorator';
+import { Moment } from 'moment-timezone';
 import { AppointmentSlot, Appointment } from '@/types/Appointment';
-import { AppointmentsTimeslot } from '@/types/AppointmentsQueue';
 
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { faUser, faChalkboardTeacher } from '@fortawesome/free-solid-svg-icons';

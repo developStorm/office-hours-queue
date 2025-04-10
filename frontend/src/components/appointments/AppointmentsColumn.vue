@@ -5,10 +5,10 @@
 				class="time-container"
 				v-if="
 					admin ||
-						index === 0 ||
-						timeslot.time.clone().minutes() === 0 ||
-						hovering ||
-						selected
+					index === 0 ||
+					timeslot.time.clone().minutes() === 0 ||
+					hovering ||
+					selected
 				"
 			>
 				<p
@@ -33,7 +33,7 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import moment, { Moment } from 'moment-timezone';
+import { Moment } from 'moment-timezone';
 import { AppointmentsTimeslot } from '@/types/AppointmentsQueue';
 import { AppointmentSlot } from '@/types/Appointment';
 import AppointmentCell from '@/components/appointments/AppointmentCell.vue';

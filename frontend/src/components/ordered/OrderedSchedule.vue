@@ -79,9 +79,7 @@ export default class OrderedSchedule extends Vue {
 
 	painting = false;
 
-	base: Moment = moment()
-		.tz(moment.tz.guess())
-		.startOf('day');
+	base: Moment = moment().tz(moment.tz.guess()).startOf('day');
 
 	static mappings: { [key: string]: string } = {
 		c: 'is-danger',

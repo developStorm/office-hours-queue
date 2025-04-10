@@ -133,10 +133,8 @@ library.add(
 @Component
 export default class AdminPage extends Vue {
 	get courses(): Course[] {
-		return Object.values(
-			this.$root.$data.courses as Course[]
-		).filter((c: Course) =>
-			this.$root.$data.userInfo.admin_courses.includes(c.id)
+		return Object.values(this.$root.$data.courses as Course[]).filter(
+			(c: Course) => this.$root.$data.userInfo.admin_courses.includes(c.id)
 		);
 	}
 

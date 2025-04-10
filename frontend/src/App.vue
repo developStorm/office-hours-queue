@@ -142,9 +142,7 @@
 												"
 												:expanded="
 													course.queues.length > 1 &&
-														course.queues.some((q) =>
-															$route.path.includes(q.id)
-														)
+													course.queues.some((q) => $route.path.includes(q.id))
 												"
 												:href="'/queues/' + course.queues[0].id"
 												@click.prevent="
@@ -215,7 +213,7 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator';
+import { Component, Vue } from 'vue-property-decorator';
 import Course from './types/Course';
 import Queue from './types/Queue';
 
@@ -360,7 +358,7 @@ export default class App extends Vue {
 					this.$router.push(redirectPath);
 				}
 			})
-			.catch((p) => (this.$root.$data.userInfoLoaded = true));
+			.catch(() => (this.$root.$data.userInfoLoaded = true));
 	}
 
 	toggleFavorite(c: Course) {
@@ -454,8 +452,7 @@ $footer-padding: 1.5rem 0.5rem;
 .slide-fade-enter,
 .slide-fade-leave-to
 
-/* .slide-fade-leave-active below version 2.1.8 */
-	 {
+/* .slide-fade-leave-active below version 2.1.8 */ {
 	transform: translateX(10px);
 	opacity: 0;
 }

@@ -73,7 +73,7 @@
 								class="button timeslot-cell"
 								:style="
 									'background-color: ' +
-										getColorForAvailability(schedules[i][j - 1])
+									getColorForAvailability(schedules[i][j - 1])
 								"
 								@mousedown="
 									() => {

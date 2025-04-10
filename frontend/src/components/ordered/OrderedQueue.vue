@@ -116,7 +116,7 @@
 						@click="editSchedule"
 						v-if="queue.config !== null && queue.config.scheduled"
 					>
-						<span class="icon"><font-awesome-icon icon="calendar-alt"/></span>
+						<span class="icon"><font-awesome-icon icon="calendar-alt" /></span>
 						<span>Edit Schedule</span>
 					</button>
 					<button
@@ -124,7 +124,7 @@
 						@click="setOpen(false)"
 						v-else-if="queue.open"
 					>
-						<span class="icon"><font-awesome-icon icon="lock"/></span>
+						<span class="icon"><font-awesome-icon icon="lock" /></span>
 						<span>Close Queue</span>
 					</button>
 					<button
@@ -132,19 +132,19 @@
 						@click="setOpen(true)"
 						v-else
 					>
-						<span class="icon"><font-awesome-icon icon="lock-open"/></span>
+						<span class="icon"><font-awesome-icon icon="lock-open" /></span>
 						<span>Open Queue</span>
 					</button>
 					<button class="button is-black is-responsive" @click="randomizeQueue">
-						<span class="icon"><font-awesome-icon icon="dice"/></span>
+						<span class="icon"><font-awesome-icon icon="dice" /></span>
 						<span>Randomize Queue</span>
 					</button>
 					<button class="button is-danger is-responsive" @click="clearQueue">
-						<span class="icon"><font-awesome-icon icon="eraser"/></span>
+						<span class="icon"><font-awesome-icon icon="eraser" /></span>
 						<span>Clear Queue</span>
 					</button>
 					<button class="button is-light is-responsive" @click="broadcast">
-						<span class="icon"><font-awesome-icon icon="bullhorn"/></span>
+						<span class="icon"><font-awesome-icon icon="bullhorn" /></span>
 						<span>Broadcast to Queue</span>
 					</button>
 				</div>
@@ -165,7 +165,9 @@
 									class="button is-small is-primary"
 									@click="downloadStackAsCSV"
 								>
-									<span class="icon"><font-awesome-icon icon="download"/></span>
+									<span class="icon"
+										><font-awesome-icon icon="download"
+									/></span>
 									<span>Download</span>
 								</button>
 							</div>
@@ -198,11 +200,10 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import moment, { Moment } from 'moment-timezone';
+import { Moment } from 'moment-timezone';
 import { json2csv } from 'json-2-csv';
 import fileDownload from 'js-file-download';
 import OrderedQueue from '@/types/OrderedQueue';
-import { QueueEntry, RemovedQueueEntry } from '@/types/QueueEntry';
 import QueueEntryDisplay from '@/components/ordered/QueueEntry.vue';
 import QueueSignup from '@/components/ordered/QueueSignup.vue';
 import ErrorDialog from '@/util/ErrorDialog';

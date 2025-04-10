@@ -17,7 +17,7 @@
 				:time="time"
 				:selected="
 					selectedAppointment !== null &&
-						selectedAppointment.timeslot === pair[0].timeslot
+					selectedAppointment.timeslot === pair[0].timeslot
 				"
 				@selected="
 					(indexInTimeslot) =>
@@ -30,13 +30,13 @@
 
 <script lang="ts">
 import { Component, Prop, Watch, Vue } from 'vue-property-decorator';
-import moment, { Moment } from 'moment-timezone';
+import { Moment } from 'moment-timezone';
 import {
 	AppointmentsQueue,
 	AppointmentsTimeslot,
 } from '@/types/AppointmentsQueue';
 import AppointmentsColumn from '@/components/appointments/AppointmentsColumn.vue';
-import { Appointment, AppointmentSlot } from '@/types/Appointment';
+import { AppointmentSlot } from '@/types/Appointment';
 
 @Component({
 	components: {
@@ -58,9 +58,7 @@ export default class AppointmentsDisplay extends Vue {
 
 	constructor() {
 		super();
-		this.id = Math.random()
-			.toString(36)
-			.substr(2);
+		this.id = Math.random().toString(36).substr(2);
 	}
 
 	get firstOpenTimeslot(): number | undefined {

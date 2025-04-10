@@ -41,8 +41,7 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import moment, { Moment } from 'moment-timezone';
-import ErrorDialog from '@/util/ErrorDialog';
+import { Moment } from 'moment-timezone';
 import { AppointmentsQueue } from '@/types/AppointmentsQueue';
 import AppointmentsAdminSelector from '@/components/appointments/AppointmentsAdminSelector.vue';
 import AppointmentsSignUp from '@/components/appointments/AppointmentsSignUp.vue';
