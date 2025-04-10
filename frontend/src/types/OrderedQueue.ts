@@ -46,9 +46,9 @@ export default class OrderedQueue extends Queue {
 
 	public setDocumentTitle() {
 		let title = '';
-		if (this.entries.length > 0) {
+		if (this.waitingEntries.length > 0) {
 			title += '(';
-			const pos = this.entryIndex(g.$data.userInfo.email);
+			const pos = this.waitingEntryIndex(g.$data.userInfo.email);
 			if (pos !== -1) {
 				title += `#${pos + 1} of `;
 			}
@@ -56,6 +56,10 @@ export default class OrderedQueue extends Queue {
 		}
 		title += `${this.course.shortName} Office Hours`;
 		document.title = title;
+	}
+
+	get waitingEntries(): QueueEntry[] {
+		return this.entries.filter((e) => !e.helping && !e.pinned);
 	}
 
 	get admin(): boolean {
@@ -296,15 +300,8 @@ export default class OrderedQueue extends Queue {
 		// 48-half-hour schedule, not necessarily the index in the day
 		// (looking at you, daylight savings)
 		return Math.floor(
-			(time
-				.clone()
-				.tz(moment.tz.guess())
-				.hour() *
-				60 +
-				time
-					.clone()
-					.tz(moment.tz.guess())
-					.minute()) /
+			(time.clone().tz(moment.tz.guess()).hour() * 60 +
+				time.clone().tz(moment.tz.guess()).minute()) /
 				30
 		);
 	}
@@ -375,6 +372,14 @@ export default class OrderedQueue extends Queue {
 		}
 
 		return this.entries.findIndex((e) => e.email === email);
+	}
+
+	public waitingEntryIndex(email: string | undefined): number {
+		if (email === undefined) {
+			return -1;
+		}
+
+		return this.waitingEntries.findIndex((e) => e.email === email);
 	}
 
 	public entry(email: string | undefined): QueueEntry | null {
