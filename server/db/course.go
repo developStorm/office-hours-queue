@@ -49,18 +49,15 @@ func (s *Server) GetCourse(ctx context.Context, id ksuid.KSUID) (*api.Course, er
 
 func (s *Server) GetAdminCourses(ctx context.Context, email string) ([]string, error) {
 	tx := getTransaction(ctx)
-	var n int
-	err := tx.GetContext(ctx, &n,
-		"SELECT COUNT(*) FROM site_admins WHERE email=$1",
-		email,
-	)
+
+	isSiteAdmin, err := s.SiteAdmin(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check site admin status: %w", err)
 	}
 
 	courses := make([]string, 0)
 	// Check if user is site admin; if so, they are admin for all courses
-	if n > 0 {
+	if isSiteAdmin {
 		err = tx.SelectContext(ctx, &courses,
 			"SELECT id FROM courses",
 		)
@@ -88,10 +85,18 @@ func (s *Server) CourseAdmin(ctx context.Context, course ksuid.KSUID, email stri
 	tx := getTransaction(ctx)
 	var n int
 	err := tx.GetContext(ctx, &n,
-		"SELECT COUNT(*) FROM (SELECT email FROM site_admins UNION SELECT email FROM course_admins WHERE course=$1) AS admins WHERE email=$2",
+		"SELECT COUNT(*) FROM course_admins WHERE course=$1 AND email=$2",
 		course, email,
 	)
-	return n > 0, err
+	if err != nil {
+		return false, err
+	}
+
+	if n > 0 {
+		return true, nil
+	}
+
+	return s.SiteAdmin(ctx, email)
 }
 
 func (s *Server) AddCourse(ctx context.Context, shortName, fullName string) (*api.Course, error) {
