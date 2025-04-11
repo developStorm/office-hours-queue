@@ -8,7 +8,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import { Component, Prop } from 'vue-property-decorator';
-import linkifyStr from 'linkifyjs/string';
+import linkifyStr from 'linkify-string';
 
 import Announcement from '../types/Announcement';
 import Queue from '../types/Queue';

@@ -156,7 +156,7 @@
 import Vue from 'vue';
 import { Moment } from 'moment';
 import { Component, Prop } from 'vue-property-decorator';
-import linkifyStr from 'linkifyjs/string';
+import linkifyStr from 'linkify-string';
 import { AppointmentsQueue } from '@/types/AppointmentsQueue';
 import AppointmentsDisplay from '@/components/appointments/AppointmentsDisplay.vue';
 import AppointmentsSchedule from '@/components/appointments/AppointmentsSchedule.vue';

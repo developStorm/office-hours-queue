@@ -283,7 +283,7 @@
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Moment } from 'moment-timezone';
-import linkifyStr from 'linkifyjs/string';
+import linkifyStr from 'linkify-string';
 import OrderedQueue from '@/types/OrderedQueue';
 import { QueueEntry } from '@/types/QueueEntry';
 import ErrorDialog from '@/util/ErrorDialog';
