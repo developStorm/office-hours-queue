@@ -217,6 +217,7 @@ import { Component, Vue } from 'vue-property-decorator';
 import Course from './types/Course';
 import Queue from './types/Queue';
 import { shouldShowCourses } from '@/util/SidebarVisibility';
+import { DialogProgrammatic as Dialog } from 'buefy';
 
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
@@ -231,6 +232,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { faStar as regularStar } from '@fortawesome/free-regular-svg-icons';
 import { faGithub } from '@fortawesome/free-brands-svg-icons';
+import ErrorDialog from './util/ErrorDialog';
+import EscapeHTML from './util/Sanitization';
 
 library.add(
 	faSignInAlt,
@@ -327,7 +330,10 @@ export default class App extends Vue {
 		Vue.set(this.$root.$data, 'userInfo', {});
 
 		fetch(process.env.BASE_URL + 'api/courses')
-			.then((resp) => resp.json())
+			.then((resp) => {
+				if (!resp.ok) return Promise.reject(resp);
+				return resp.json();
+			})
 			.then((data) => {
 				data.map((c: any) => {
 					const course = new Course(c);
@@ -339,6 +345,22 @@ export default class App extends Vue {
 					}
 				});
 				this.fetchedCourses = true;
+			})
+			.catch((error) => {
+				this.fetchedCourses = true;
+
+				if (error instanceof Response) {
+					return ErrorDialog(error);
+				}
+
+				Dialog.alert({
+					title: 'Request Failed',
+					message: `Failed to load courses. Please try again later. Error: ${EscapeHTML(
+						error
+					)}`,
+					type: 'is-danger',
+					hasIcon: true,
+				});
 			});
 
 		fetch(process.env.BASE_URL + 'api/users/@me')

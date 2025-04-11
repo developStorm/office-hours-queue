@@ -3,7 +3,10 @@ package api
 import (
 	"context"
 	"net/http"
+	"strings"
+	"time"
 
+	"github.com/go-chi/httprate"
 	"github.com/jmoiron/sqlx"
 	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
@@ -18,6 +21,22 @@ func ksuidInserter(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), RequestIDContextKey, id)
 		w.Header().Add("X-Request-ID", id.String())
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (s *Server) realIPOrFail(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			ip, _, _ := strings.Cut(xff, ",")
+			r.RemoteAddr = ip
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		s.getCtxLogger(r).Warnw("missing X-Forwarded-For header, app must be behind a proxy in production",
+			"remote_addr", r.RemoteAddr,
+		)
+		s.internalServerError(w, r)
 	})
 }
 
@@ -41,6 +60,7 @@ func (s *Server) transaction(tr transactioner) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tx, err := tr.BeginTx()
 			if err != nil {
+				s.getCtxLogger(r).Errorw("failed to begin DB transaction", "err", err)
 				s.internalServerError(w, r)
 				return
 			}
@@ -172,11 +192,9 @@ func (s *Server) EnsureSiteAdmin(sa siteAdmin, shouldLog bool) func(http.Handler
 // setupCtxLogger adds consistent logging fields to all requests
 func (s *Server) setupCtxLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// WARNING: IP here only used for debug tracing, and should not be
-		// used for any kind of authentication as it can be spoofed.
 		ctxLogger := s.logger.With(
 			RequestIDContextKey, r.Context().Value(RequestIDContextKey),
-			"trace_id", r.Header.Get("X-Forwarded-For"),
+			"trace_id", r.RemoteAddr,
 		)
 		ctx := context.WithValue(r.Context(), loggerContextKey, ctxLogger)
 
@@ -192,4 +210,37 @@ func (s *Server) getCtxLogger(r *http.Request) *zap.SugaredLogger {
 
 	// Fallback to the default logger if not found in context (shouldn't happen?)
 	return s.logger.With("fallback_logger", "true")
+}
+
+// limitHandler is called when the rate limit is exceeded
+func (s *Server) getRateLimitOpts() []httprate.Option {
+	return []httprate.Option{
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			s.errorMessage(
+				http.StatusTooManyRequests,
+				"Whoooa slow down! You're making too many requests.",
+				w, r,
+			)
+		}),
+		httprate.WithResponseHeaders(httprate.ResponseHeaders{Reset: "X-RateLimit-Reset"}),
+	}
+}
+
+func (s *Server) rateLimiter(rate int, window time.Duration) func(http.Handler) http.Handler {
+	rl := httprate.NewRateLimiter(rate, window, s.getRateLimitOpts()...)
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			key, ok := r.Context().Value(emailContextKey).(string)
+			if !ok || key == "" {
+				key = r.RemoteAddr
+			}
+
+			if rl.RespondOnLimit(w, r, key) {
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/antonlindstrom/pgstore"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -127,15 +128,15 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 	s.oidcProvider = oidcProvider
 
 	s.Router = chi.NewRouter()
-	s.Router.Use(instrumenter, ksuidInserter, s.setupCtxLogger, s.recoverMiddleware, s.transaction(q), s.sessionRetriever)
+	s.Router.Use(instrumenter, ksuidInserter, s.realIPOrFail, s.setupCtxLogger, s.recoverMiddleware, s.transaction(q), s.sessionRetriever)
 
 	// Course endpoints
 	s.Route("/courses", func(r chi.Router) {
 		// Get all courses
 		r.Method("GET", "/", s.GetCourses(q))
 
-		// Create course (course admin)
-		r.With(s.ValidLoginMiddleware, s.EnsureSiteAdmin(q, true)).Method("POST", "/", s.AddCourse(q))
+		// Create course (site admin)
+		r.With(s.ValidLoginMiddleware, s.EnsureSiteAdmin(q, true), s.rateLimiter(5, time.Minute)).Method("POST", "/", s.AddCourse(q))
 
 		// Course by ID endpoints
 		r.Route("/{id:[a-zA-Z0-9]{27}}", func(r chi.Router) {
@@ -153,7 +154,7 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 			r.With(s.ValidLoginMiddleware, s.CheckCourseAdmin(q), s.EnsureCourseAdmin).Method("DELETE", "/", s.DeleteCourse(q))
 
 			// Create queue on course (course admin)
-			r.With(s.ValidLoginMiddleware, s.CheckCourseAdmin(q), s.EnsureCourseAdmin).Method("POST", "/queues", s.AddQueue(q))
+			r.With(s.ValidLoginMiddleware, s.CheckCourseAdmin(q), s.EnsureCourseAdmin, s.rateLimiter(5, time.Minute)).Method("POST", "/queues", s.AddQueue(q))
 
 			// Course admin management (course admin)
 			r.Route("/admins", func(r chi.Router) {
@@ -195,7 +196,8 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 			r.Use(s.ValidLoginMiddleware)
 
 			// Add queue entry (valid login)
-			r.Method("POST", "/", s.AddQueueEntry(q))
+			// Rate limited to 30 requests per 15 minutes for a user to prevent abuse.
+			r.With(s.rateLimiter(30, 15*time.Minute)).Method("POST", "/", s.AddQueueEntry(q))
 
 			// Update queue entry (valid login, same user as creator)
 			r.Method("PUT", "/{entry_id:[a-zA-Z0-9]{27}}", s.UpdateQueueEntry(q))
@@ -281,7 +283,7 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 				r.With(s.ValidLoginMiddleware).Method("GET", "/@me", s.GetAppointmentsForCurrentUser(q))
 
 				// Create appointment on day at timeslot
-				r.With(s.ValidLoginMiddleware, s.AppointmentTimeslotMiddleware).Method("POST", `/{timeslot:\d+}`, s.SignupForAppointment(q))
+				r.With(s.ValidLoginMiddleware, s.rateLimiter(30, 15*time.Minute), s.AppointmentTimeslotMiddleware).Method("POST", `/{timeslot:\d+}`, s.SignupForAppointment(q))
 
 				// Appointment claiming (queue admin)
 				r.Route(`/claims/{timeslot:\d+}`, func(r chi.Router) {
@@ -332,7 +334,8 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 
 	s.Method("GET", "/oauth2login", s.OAuth2LoginLink())
 
-	s.Method("GET", "/oauth2callback", s.OAuth2Callback())
+	// To not overwhelm our IdP with requests...
+	s.With(s.rateLimiter(15, 15*time.Minute)).Method("GET", "/oauth2callback", s.OAuth2Callback())
 
 	s.Method("GET", "/logout", s.Logout())
 
