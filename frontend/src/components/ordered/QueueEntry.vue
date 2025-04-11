@@ -31,17 +31,15 @@
 						<template v-if="hasCustomPrompts">
 							<div
 								class="level icon-row is-mobile"
-								v-for="(reply, prompt) in promptResponses"
-								:key="prompt"
+								v-for="(reply, i) in promptResponses"
+								:key="i"
 							>
 								<div class="level-left">
-									<b-tooltip :label="prompt" position="is-right">
-										<font-awesome-icon
-											icon="question"
-											class="mr-2 level-item mt-1"
-											fixed-width
-										/>
-									</b-tooltip>
+									<font-awesome-icon
+										icon="question"
+										class="mr-2 level-item mt-1"
+										fixed-width
+									/>
 									<span class="level-item stay-in-container">{{ reply }}</span>
 								</div>
 							</div>
@@ -66,14 +64,14 @@
 						>
 							<div class="level-left">
 								<font-awesome-icon
-									:icon="queue.config.virtual ? 'link' : 'map-marker'"
+									:icon="queue?.config?.virtual ? 'link' : 'map-marker'"
 									class="mr-2 level-item mt-1"
 									fixed-width
 								/>
 								<p
 									class="level-item"
 									:class="
-										queue.config.virtual
+										queue?.config?.virtual
 											? 'link-in-container'
 											: 'stay-in-container'
 									"
@@ -165,7 +163,7 @@
 									class="button is-danger"
 									:class="{ 'is-loading': removeRequestRunning }"
 									v-on:click="removeEntry"
-									v-else-if="!isBeingHelped"
+									v-else-if="!entry.isBeingHelped"
 								>
 									<span class="icon"><font-awesome-icon icon="times" /></span>
 									<span>Cancel</span>
@@ -288,6 +286,7 @@ import OrderedQueue from '@/types/OrderedQueue';
 import { QueueEntry } from '@/types/QueueEntry';
 import ErrorDialog from '@/util/ErrorDialog';
 import EscapeHTML from '@/util/Sanitization';
+import * as PromptHandler from '@/util/PromptHandler';
 
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
@@ -364,28 +363,15 @@ export default class QueueEntryDisplay extends Vue {
 		return this.entry.humanizedTimestamp(this.time.clone().add(5, 'second'));
 	}
 
-	get promptResponses(): { [key: string]: string } {
-		if (!this.entry.description) return {};
-
-		try {
-			const parsed = JSON.parse(this.entry.description);
-			if (typeof parsed === 'object' && parsed !== null) {
-				for (const key in parsed) {
-					if (typeof key !== 'string' || typeof parsed[key] !== 'string') {
-						return {};
-					}
-				}
-				return parsed;
-			}
-		} catch {
-			return {};
-		}
-
-		return {};
+	get promptResponses(): string[] {
+		return PromptHandler.descriptionToResponses(
+			this.entry.description,
+			this.queue.config?.prompts
+		);
 	}
 
 	get hasCustomPrompts(): boolean {
-		return Object.keys(this.promptResponses).length > 0;
+		return this.promptResponses.length > 0;
 	}
 
 	removeRequestRunning = false;

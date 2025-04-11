@@ -114,6 +114,7 @@ import OrderedQueue from '@/types/OrderedQueue';
 import { QueueEntry } from '@/types/QueueEntry';
 import ErrorDialog from '@/util/ErrorDialog';
 import EscapeHTML from '@/util/Sanitization';
+import * as PromptHandler from '@/util/PromptHandler';
 
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
@@ -143,36 +144,25 @@ export default class QueueSignup extends Vue {
 	customResponses: string[] = [];
 
 	// Character limits matching server-side validation
-	readonly maxDescriptionLength = 2000;
+	readonly maxDescriptionLength = 1500;
 	readonly maxLocationLength = 300;
 
 	@Prop({ required: true }) queue!: OrderedQueue;
 	@Prop({ required: true }) time!: Moment;
 
 	private hasDescWithPrompts(): boolean {
-		return Boolean(this.queue.config?.prompts?.length);
+		return PromptHandler.hasCustomPrompts(this.queue.config);
 	}
 
 	private descWithPromptsToDescription(): string {
-		return JSON.stringify(
-			Object.fromEntries(
-				this!.queue!.config!.prompts!.map((p, i) => [
-					p,
-					this.customResponses[i],
-				])
-			)
-		);
+		return PromptHandler.responsesToDescription(this.customResponses);
 	}
 
 	private descriptionToDescWithPrompts(description: string): string[] {
-		try {
-			const parsedDescription = JSON.parse(description || '{}');
-			return this!.queue!.config!.prompts!.map(
-				(prompt) => parsedDescription[prompt] || ''
-			);
-		} catch (e) {
-			return this!.queue!.config!.prompts!.map(() => '');
-		}
+		return PromptHandler.descriptionToResponses(
+			description,
+			this.queue.config?.prompts
+		);
 	}
 
 	@Watch('myEntry')
@@ -190,7 +180,6 @@ export default class QueueSignup extends Vue {
 	}
 
 	get totalCustomResponseLength(): number {
-		// Calculate the total length of the stringified JSON
 		if (!this.customResponses.length) return 0;
 		return this.descWithPromptsToDescription().length;
 	}
@@ -218,7 +207,10 @@ export default class QueueSignup extends Vue {
 		// parts had a reactive update. This took way too long to figure out :(
 
 		const isValidDescription = this.hasDescWithPrompts()
-			? this.customResponses.every((r) => r.trim() !== '')
+			? PromptHandler.areResponsesValid(
+					this.customResponses,
+					this.queue.config!.prompts!
+			  )
 			: this.description.trim() !== '';
 
 		return (

@@ -28,7 +28,7 @@ type getQueue interface {
 const queueContextKey = "queue"
 
 // Maximum character limits for queue entry fields
-const maxDescriptionLength = 2000
+const maxDescriptionLength = 1500
 const maxLocationLength = 300
 
 func (s *Server) QueueIDMiddleware(gq getQueue) func(http.Handler) http.Handler {
@@ -482,7 +482,7 @@ type addQueueEntry interface {
 }
 
 // validateQueueEntryDescription validates that:
-// - If prompts are configured, description must be valid JSON matching prompts
+// - If prompts are configured, description must be valid JSON array matching prompt count
 // - If no prompts configured, description must not be JSON
 // - Description must not exceed the maximum character limit
 func validateQueueEntryDescription(description string, prompts []string) error {
@@ -491,32 +491,38 @@ func validateQueueEntryDescription(description string, prompts []string) error {
 		return fmt.Errorf("description is too long (max %d characters)", maxDescriptionLength)
 	}
 
-	var jsonData map[string]string
+	var jsonArray []string
+	err := json.Unmarshal([]byte(description), &jsonArray)
 
-	if err := json.Unmarshal([]byte(description), &jsonData); err == nil {
-		// Description is valid JSON
-		if len(prompts) == 0 {
-			return fmt.Errorf("oops, JSON description is not allowed")
+	// If prompts are configured, description should be a JSON array
+	if len(prompts) > 0 {
+		if err != nil {
+			return fmt.Errorf("hmm, got description in unexpected format. Try clear cache and refresh?")
 		}
 
-		if len(jsonData) != len(prompts) {
-			return fmt.Errorf("wrong number of prompt responses, expected %d got %d", len(prompts), len(jsonData))
+		// Check that the array length matches the number of prompts
+		if len(jsonArray) != len(prompts) {
+			return fmt.Errorf("wrong number of prompt responses, expected %d got %d", len(prompts), len(jsonArray))
 		}
 
-		// Verify all required prompts exist with non-empty values
-		for _, prompt := range prompts {
-			value, exists := jsonData[prompt]
-			if !exists || strings.TrimSpace(value) == "" {
-				return fmt.Errorf("empty response for prompt: %s", prompt)
+		// Verify all responses are non-empty
+		for i, response := range jsonArray {
+			if strings.TrimSpace(response) == "" {
+				return fmt.Errorf("empty response for prompt #%d: %s", i+1, prompts[i])
 			}
 		}
 
 		return nil
 	}
 
-	// Not JSON - only allowed if no prompts configured
-	if len(prompts) > 0 {
-		return fmt.Errorf("hmm, we were expecting JSON here. Did you forget to fill out the sign-up form?")
+	// If no prompts configured, check if description is accidentally JSON array
+	if err := json.Unmarshal([]byte(description), &jsonArray); err == nil {
+		return fmt.Errorf("oops, JSON array-like string is not allowed as description")
+	}
+
+	// Should also not be dictionary-like
+	if err := json.Unmarshal([]byte(description), &map[string]interface{}{}); err == nil {
+		return fmt.Errorf("oops, JSON object-like string is not allowed as description")
 	}
 
 	return nil
