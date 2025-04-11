@@ -13,7 +13,7 @@ export function shouldShowCourses(
 	queueOrID?: string | Queue
 ): boolean {
 	if (!queueOrID) return true; // Non-queue pages should always show the sidebar
-	if (window.innerWidth < 769) return false;
+	if (window.innerWidth < 1024) return false;
 
 	// Get the queue from the store
 	const queue =

@@ -205,7 +205,7 @@
 					</div>
 				</div>
 			</div>
-			<figure class="media-right" style="padding: 0">
+			<figure class="media-right">
 				<transition-group name="slide-fade" mode="out-in">
 					<div class="is-pulled-right" key="online" v-if="admin">
 						<b-tooltip
@@ -226,7 +226,7 @@
 										? 'hsl(141, 53%, 53%)'
 										: 'hsl(348, 100%, 61%)',
 								}"
-								class="is-size-6 ml-3"
+								class="is-size-6 ml-3 ml-0-touch"
 								icon="circle"
 								fixed-width
 							/>
@@ -238,7 +238,7 @@
 							position="is-left"
 						>
 							<font-awesome-icon
-								class="is-size-1 is-size-6-touch"
+								class="is-size-2 is-size-6-touch"
 								icon="thumbtack"
 								fixed-width
 							/>
@@ -250,7 +250,7 @@
 							position="is-left"
 						>
 							<font-awesome-icon
-								class="is-size-1 is-size-6-touch"
+								class="is-size-2 is-size-6-touch"
 								icon="chalkboard-teacher"
 								fixed-width
 							/>
@@ -267,7 +267,7 @@
 						>
 							<font-awesome-icon
 								icon="frown-open"
-								class="is-size-1 is-size-6-touch"
+								class="is-size-2 is-size-6-touch"
 								fixed-width
 							/>
 						</b-tooltip>
@@ -481,10 +481,6 @@ export default class QueueEntryDisplay extends Vue {
 </script>
 
 <style scoped>
-.entry {
-	overflow-x: hidden;
-}
-
 .icon-row {
 	margin-bottom: 0px;
 }
@@ -508,5 +504,20 @@ export default class QueueEntryDisplay extends Vue {
 	overflow-wrap: anywhere;
 	hyphens: auto;
 	display: inline-block;
+}
+
+.media {
+	position: relative;
+}
+
+.media-right {
+	position: absolute;
+	right: 0.1rem;
+}
+
+@media screen and (max-width: 768px) {
+	.ml-0-touch {
+		margin-left: 0 !important;
+	}
 }
 </style>
