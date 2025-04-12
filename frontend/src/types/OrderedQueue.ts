@@ -159,7 +159,9 @@ export default class OrderedQueue extends Queue {
 					);
 					Dialog.alert({
 						title: `You're up!`,
-						message: `${data.helping} is now coming to help you. Please be ready for them to join!`,
+						message: `${EscapeHTML(
+							data.helping
+						)} is now coming to help you. Please be ready for them to join!`,
 						type: 'is-success',
 						hasIcon: true,
 					});

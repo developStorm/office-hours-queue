@@ -194,12 +194,22 @@
 								</button>
 							</template>
 							<template v-if="admin">
-								<button class="button is-warning" @click="messageUser">
-									<span class="icon"
-										><font-awesome-icon icon="envelope"
-									/></span>
-									<span>Message</span>
-								</button>
+								<b-tooltip
+									:label="entry.online ? '' : 'Cannot message offline user'"
+									position="is-top"
+									:active="!entry.online"
+								>
+									<button
+										class="button is-warning"
+										@click="messageUser"
+										:disabled="!entry.online"
+									>
+										<span class="icon"
+											><font-awesome-icon icon="envelope"
+										/></span>
+										<span>Message</span>
+									</button>
+								</b-tooltip>
 							</template>
 						</div>
 					</div>
@@ -246,7 +256,7 @@
 					</div>
 					<div class="is-pulled-right" key="helping" v-if="entry.isBeingHelped">
 						<b-tooltip
-							:label="`This student is currently being helped by ${entry.helping}`"
+							:label="`Currently being helped by ${beingHelpedBy}`"
 							position="is-left"
 						>
 							<font-awesome-icon
@@ -430,6 +440,10 @@ export default class QueueEntryDisplay extends Vue {
 				return ErrorDialog(res);
 			}
 		});
+	}
+
+	get beingHelpedBy() {
+		return EscapeHTML(this.entry.helping.trim());
 	}
 
 	notHelpedRequestRunning = false;

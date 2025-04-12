@@ -76,8 +76,6 @@ type queueStore interface {
 	getQueueConfiguration
 	updateQueueConfiguration
 	updateQueueOpenStatus
-	sendMessage
-	viewMessage
 	getQueueRoster
 	getQueueGroups
 	updateQueueGroups
@@ -254,7 +252,7 @@ func New(q queueStore, logger *zap.SugaredLogger, sessionsStore *sql.DB, oidcPro
 		})
 
 		// Send message (queue admin)
-		r.With(s.ValidLoginMiddleware, s.EnsureCourseAdmin).Method("POST", "/messages", s.SendMessage(q))
+		r.With(s.ValidLoginMiddleware, s.EnsureCourseAdmin).Method("POST", "/messages", s.SendMessage())
 
 		// Get queue roster (queue admin)
 		r.With(s.ValidLoginMiddleware, s.EnsureCourseAdmin).Method("GET", "/roster", s.GetQueueRoster(q))

@@ -111,7 +111,7 @@ export default class Queue {
 					type: 'is-warning',
 					hasIcon: true,
 				});
-				setTimeout(() => location.reload(), delay);
+				setTimeout(() => window.location.reload(), delay);
 				break;
 			}
 			case 'QUEUE_RANDOMIZE': {

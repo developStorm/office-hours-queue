@@ -108,22 +108,6 @@ CREATE TABLE public.groups (
 
 ALTER TABLE public.groups OWNER TO queue;
 
-
---
--- Name: messages; Type: TABLE; Schema: public; Owner: queue
---
-
-CREATE TABLE public.messages (
-    id character(27) NOT NULL,
-    queue character(27) NOT NULL,
-    content text NOT NULL,
-    sender text NOT NULL,
-    receiver text NOT NULL
-);
-
-
-ALTER TABLE public.messages OWNER TO queue;
-
 --
 -- Name: queue_entries; Type: TABLE; Schema: public; Owner: queue
 --
@@ -214,6 +198,7 @@ CREATE TABLE public.site_admins (
 
 
 ALTER TABLE public.site_admins OWNER TO queue;
+
 --
 -- Name: teammates; Type: VIEW; Schema: public; Owner: -
 --
@@ -264,14 +249,6 @@ ALTER TABLE ONLY public.course_admins
 
 ALTER TABLE ONLY public.courses
     ADD CONSTRAINT courses_pkey PRIMARY KEY (id);
-
-
---
--- Name: messages messages_pkey; Type: CONSTRAINT; Schema: public; Owner: queue
---
-
-ALTER TABLE ONLY public.messages
-    ADD CONSTRAINT messages_pkey PRIMARY KEY (id);
 
 
 --
@@ -381,14 +358,6 @@ ALTER TABLE ONLY public.course_admins
 
 ALTER TABLE ONLY public.groups
     ADD CONSTRAINT groups_queue_fkey FOREIGN KEY (queue) REFERENCES public.queues(id) ON DELETE CASCADE;
-
-
---
--- Name: messages messages_queue_fkey; Type: FK CONSTRAINT; Schema: public; Owner: queue
---
-
-ALTER TABLE ONLY public.messages
-    ADD CONSTRAINT messages_queue_fkey FOREIGN KEY (queue) REFERENCES public.queues(id) ON DELETE CASCADE;
 
 
 --

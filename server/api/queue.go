@@ -97,10 +97,6 @@ type getCurrentDaySchedule interface {
 	GetCurrentDaySchedule(ctx context.Context, queue ksuid.KSUID) (string, error)
 }
 
-type viewMessage interface {
-	ViewMessage(ctx context.Context, queue ksuid.KSUID, receiver string) (*Message, error)
-}
-
 type getQueueDetails interface {
 	getQueueEntry
 	getQueueEntries
@@ -108,7 +104,6 @@ type getQueueDetails interface {
 	getQueueStack
 	getQueueAnnouncements
 	getCurrentDaySchedule
-	viewMessage
 	getQueueConfiguration
 }
 
@@ -199,17 +194,6 @@ func (s *Server) GetQueue(gd getQueueDetails) E {
 			return err
 		}
 		response["announcements"] = announcements
-
-		if email != "" {
-			message, err := gd.ViewMessage(r.Context(), q.ID, email)
-			if errors.Is(err, sql.ErrNoRows) {
-			} else if err != nil {
-				l.Errorw("failed to fetch message", "err", err)
-				return err
-			} else {
-				response["message"] = message
-			}
-		}
 
 		return s.sendResponse(http.StatusOK, response, w, r)
 	}
@@ -1267,14 +1251,9 @@ func (s *Server) UpdateQueueOpenStatus(uo updateQueueOpenStatus) E {
 	}
 }
 
-type sendMessage interface {
-	SendMessage(ctx context.Context, queue ksuid.KSUID, content, from, to string) (*Message, error)
-}
-
-func (s *Server) SendMessage(sm sendMessage) E {
+func (s *Server) SendMessage() E {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.Context().Value(queueContextKey).(*Queue)
-		email := r.Context().Value(emailContextKey).(string)
 		l := s.getCtxLogger(r)
 
 		var message Message
@@ -1295,23 +1274,21 @@ func (s *Server) SendMessage(sm sendMessage) E {
 			}
 		}
 
+		// Sender doesn't really matter as frontend is not showing it
+		// Keep redacted for privacy
+		message.Sender = ""
+		message.Queue = q.ID
+		message.ID = ksuid.New()
+
 		if message.Receiver == "<broadcast>" {
-			s.ps.Pub(WS("MESSAGE_CREATE", message), QueueTopicGeneric(q.ID))
 			l.Infow("broadcast to queue", "content", message.Content)
-			return s.sendResponse(http.StatusCreated, message, w, r)
+			s.ps.Pub(WS("MESSAGE_CREATE", message), QueueTopicGeneric(q.ID))
+		} else {
+			l.Infow("send DM", "message", message, "to_user", message.Receiver)
+			s.ps.Pub(WS("MESSAGE_CREATE", message), QueueTopicEmail(q.ID, message.Receiver))
 		}
 
-		newMessage, err := sm.SendMessage(r.Context(), q.ID, message.Content, email, message.Receiver)
-		if err != nil {
-			l.Errorw("failed to create message", "err", err)
-			return err
-		}
-
-		l.Infow("send DM", "message", newMessage, "to_user", message.Receiver)
-
-		s.ps.Pub(WS("MESSAGE_CREATE", newMessage), QueueTopicEmail(q.ID, message.Receiver))
-
-		return s.sendResponse(http.StatusCreated, newMessage, w, r)
+		return s.sendResponse(http.StatusCreated, message, w, r)
 	}
 }
 

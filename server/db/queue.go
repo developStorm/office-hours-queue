@@ -534,27 +534,6 @@ func (s *Server) UpdateQueueSchedule(ctx context.Context, queue ksuid.KSUID, sch
 	return nil
 }
 
-func (s *Server) SendMessage(ctx context.Context, queue ksuid.KSUID, content, sender, receiver string) (*api.Message, error) {
-	tx := getTransaction(ctx)
-	id := ksuid.New()
-	var message api.Message
-	err := tx.GetContext(ctx, &message,
-		"INSERT INTO messages (id, queue, content, sender, receiver) VALUES ($1, $2, $3, $4, $5) RETURNING id, queue, content, sender, receiver",
-		id, queue, content, sender, receiver,
-	)
-	return &message, err
-}
-
-func (s *Server) ViewMessage(ctx context.Context, queue ksuid.KSUID, receiver string) (*api.Message, error) {
-	tx := getTransaction(ctx)
-	var message api.Message
-	err := tx.GetContext(ctx, &message,
-		"DELETE FROM messages WHERE id IN (SELECT id FROM messages WHERE queue=$1 AND receiver=$2 ORDER BY id LIMIT 1) RETURNING id, queue, content, sender, receiver",
-		queue, receiver,
-	)
-	return &message, err
-}
-
 func (s *Server) QueueStats() ([]api.QueueStats, error) {
 	var queues []api.QueueStats
 
