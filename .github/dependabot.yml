@@ -1,23 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/frontend"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "npm"
-    ignore:
-      - dependency-name: "vue"
-        versions: ["3.x", ">=3.0.0"]
-      - dependency-name: "@vue/*"
-        versions: [">=5.0.0"]
-      - dependency-name: "vue-*"
-        versions: [">=3.0.0"]
-      - dependency-name: "*fortawesome*"
-        update-types: ["version-update:semver-major"]
-
   - package-ecosystem: "gomod"
     directory: "/server"
     schedule:
