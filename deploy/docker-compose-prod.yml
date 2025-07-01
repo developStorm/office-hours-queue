@@ -72,7 +72,7 @@ services:
         soft: -1
         hard: -1
   logstash:
-    image: docker.elastic.co/logstash/logstash:9.0.1
+    image: docker.elastic.co/logstash/logstash:9.0.3
     restart: unless-stopped
     volumes:
       - "./fluent-input.conf:/usr/share/logstash/pipeline/03-fluent-input.conf"
