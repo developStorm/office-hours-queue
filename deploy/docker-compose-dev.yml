@@ -55,7 +55,7 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: queue
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.0
     restart: unless-stopped
     volumes:
       - elastic:/usr/share/elasticsearch/data
