@@ -10,7 +10,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/cskr/pubsub v1.0.2
 	github.com/dchest/uniuri v1.2.0
-	github.com/go-chi/chi/v5 v5.2.2
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/httprate v0.15.0
 	github.com/gorilla/sessions v1.4.0
 	github.com/gorilla/websocket v1.5.3
