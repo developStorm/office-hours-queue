@@ -40,7 +40,7 @@ services:
         fluentd-address: tcp://127.0.0.1:5000
         fluentd-async: "true"
   db:
-    image: postgres:13.21
+    image: postgres:13.22
     restart: unless-stopped
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
