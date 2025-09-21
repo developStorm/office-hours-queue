@@ -374,10 +374,7 @@ export default class QueueEntryDisplay extends Vue {
 	}
 
 	get promptResponses(): string[] {
-		return PromptHandler.descriptionToResponses(
-			this.entry.description,
-			this.queue.config?.prompts
-		);
+		return PromptHandler.descriptionToResponses(this.entry.description);
 	}
 
 	get hasCustomPrompts(): boolean {

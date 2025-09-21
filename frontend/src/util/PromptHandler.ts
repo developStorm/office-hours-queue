@@ -19,47 +19,43 @@ export function responsesToDescription(responses: string[]): string {
 }
 
 /**
- * Parse a description string into an array of prompt responses
- * @param description The JSON description string
- * @param prompts Array of prompts to match against
+ * Parse a description string into an array of prompt responses.
+ * Behavior:
+ * - If description is a JSON array of strings, return the array.
+ * - If description is a JSON object whose values are strings, return Object.values in key order.
+ * - If parsing fails or structure is invalid, return an empty array (treat as non-prompted description).
+ *
+ * @param description The raw description string stored on the entry
  */
-export function descriptionToResponses(
-	description?: string,
-	prompts?: string[]
-): string[] {
+export function descriptionToResponses(description?: string): string[] {
 	if (!description) return [];
-	if (!prompts || !prompts.length) return [];
 
 	try {
-		const parsedData = JSON.parse(description || '[]');
+		const parsedData = JSON.parse(description);
 
-		// Handle array format (preferred)
+		// Preferred format: array of strings
 		if (Array.isArray(parsedData)) {
-			// Validate each item is a string
 			for (const item of parsedData) {
-				if (typeof item !== 'string') {
-					return prompts.map(() => '');
-				}
+				if (typeof item !== 'string') return [];
 			}
 			return parsedData;
 		}
 
-		// For backward compatibility - handle old object format
-		// by extracting values in order of prompts
+		// Legacy format: object with string values
 		if (typeof parsedData === 'object' && parsedData !== null) {
-			for (const key in parsedData) {
-				if (typeof key !== 'string' || typeof parsedData[key] !== 'string') {
-					return prompts.map(() => '');
-				}
+			const values: string[] = [];
+			for (const key in parsedData as Record<string, unknown>) {
+				const val = (parsedData as Record<string, unknown>)[key];
+				if (typeof key !== 'string' || typeof val !== 'string') return [];
+				values.push(val);
 			}
-
-			return Object.values(parsedData);
+			return values;
 		}
 
-		// Not valid JSON array or object
-		return prompts.map(() => '');
-	} catch (e) {
-		return prompts.map(() => '');
+		return [];
+	} catch {
+		// Not JSON: treat as plain description (non-prompted)
+		return [];
 	}
 }
 

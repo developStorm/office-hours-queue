@@ -159,10 +159,7 @@ export default class QueueSignup extends Vue {
 	}
 
 	private descriptionToDescWithPrompts(description: string): string[] {
-		return PromptHandler.descriptionToResponses(
-			description,
-			this.queue.config?.prompts
-		);
+		return PromptHandler.descriptionToResponses(description);
 	}
 
 	@Watch('myEntry')
