@@ -39,10 +39,10 @@ services:
         fluentd-address: tcp://127.0.0.1:5000
         fluentd-async: "true"
   db:
-    image: postgres:13.22
+    image: postgres:18.0
     restart: unless-stopped
     volumes:
-      - db:/var/lib/postgresql/data
+      - ./volumes/db:/var/lib/postgresql/18/docker
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - db
