@@ -56,7 +56,7 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: queue
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.4
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.0
     restart: unless-stopped
     volumes:
       - ./volumes/elastic:/usr/share/elasticsearch/data
@@ -72,7 +72,7 @@ services:
         soft: -1
         hard: -1
   logstash:
-    image: docker.elastic.co/logstash/logstash:9.1.4
+    image: docker.elastic.co/logstash/logstash:9.2.0
     restart: unless-stopped
     volumes:
       - "./fluent-input.conf:/usr/share/logstash/pipeline/03-fluent-input.conf"
@@ -86,7 +86,7 @@ services:
         max-size: "5m"
         max-file: "2"
   kibana:
-    image: docker.elastic.co/kibana/kibana:9.1.4
+    image: docker.elastic.co/kibana/kibana:9.2.0
     restart: unless-stopped
     volumes:
       - ./kibana.yml:/usr/share/kibana/config/kibana.yml
