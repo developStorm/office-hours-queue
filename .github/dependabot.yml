@@ -8,6 +8,10 @@ updates:
     labels:
       - "dependencies"
       - "go"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -17,6 +21,10 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/server"
@@ -26,6 +34,10 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker-compose"
     directory: "/deploy"
@@ -35,6 +47,10 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "postgres"
         update-types: ["version-update:semver-major"]
