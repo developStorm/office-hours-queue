@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/antonlindstrom/pgstore v0.0.0-20200229204646-b08ebf1105e0
 	github.com/caarlos0/env/v11 v11.3.1
-	github.com/coreos/go-oidc/v3 v3.16.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/cskr/pubsub v1.0.2
 	github.com/dchest/uniuri v1.2.0
 	github.com/go-chi/chi/v5 v5.2.3
@@ -18,8 +18,8 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.23.2
 	github.com/segmentio/ksuid v1.0.4
-	go.uber.org/zap v1.27.0
-	golang.org/x/oauth2 v0.32.0
+	go.uber.org/zap v1.27.1
+	golang.org/x/oauth2 v0.34.0
 )
 
 require (
