@@ -1,547 +1,300 @@
-<template>
-	<div class="is-min-height-100vh is-flex is-flex-direction-column">
-		<nav class="navbar has-shadow is-spaced">
-			<div class="container">
-				<div class="navbar-brand">
-					<div class="navbar-item">
-						<h1 class="title">
-							<a
-								href="/"
-								class="no-link-color"
-								@click.prevent="
-									() => {
-										$root.$data.showCourses = true;
-										$router.push('/');
-									}
-								"
-								>CS Office Hours</a
-							>
-						</h1>
-					</div>
-				</div>
-				<div class="navbar-end">
-					<div class="level is-mobile">
-						<div class="level-left">
-							<div class="level-item">
-								<div class="navbar-item" v-if="admin">
-									<b-tooltip class="is-left" label="Student View">
-										<font-awesome-icon
-											class="clickable-icon"
-											icon="user-graduate"
-											size="2x"
-											@click="setStudentView(true)"
-									/></b-tooltip>
-								</div>
-								<div class="navbar-item" v-if="studentView">
-									<b-tooltip class="is-left" label="Exit Student View">
-										<font-awesome-icon
-											class="clickable-icon"
-											icon="user-shield"
-											size="2x"
-											@click="setStudentView(false)"
-										/>
-									</b-tooltip>
-								</div>
-								<div class="navbar-item" v-if="admin">
-									<b-tooltip class="is-left" label="Admin Panel">
-										<router-link to="/admin" class="no-link-color">
-											<font-awesome-icon icon="user-shield" size="2x" />
-										</router-link>
-									</b-tooltip>
-								</div>
-								<div class="navbar-item" v-if="siteAdmin">
-									<b-tooltip class="is-left" label="System Logs (Danger Zone)">
-										<a href="/kibana" target="_blank" class="no-link-color">
-											<font-awesome-icon icon="chart-line" size="2x" />
-										</a>
-									</b-tooltip>
-								</div>
-								<div class="navbar-item">
-									<a
-										href="https://github.com/developStorm/office-hours-queue"
-										target="_blank"
-										class="no-link-color"
-									>
-										<font-awesome-icon :icon="['fab', 'github']" size="2x" />
-									</a>
-								</div>
-							</div>
-						</div>
-						<div class="level-right">
-							<div class="level-item">
-								<div class="navbar-item">
-									<button
-										class="button is-info is-loading"
-										v-if="!$root.$data.userInfoLoaded"
-									>
-										<span class="icon"
-											><font-awesome-icon icon="sign-in-alt"
-										/></span>
-										<span>Log in</span>
-									</button>
-									<a :href="loginUrl" v-else-if="!$root.$data.loggedIn">
-										<button class="button is-info">
-											<span class="icon"
-												><font-awesome-icon icon="sign-in-alt"
-											/></span>
-											<span>Log in</span>
-										</button>
-									</a>
-									<a :href="logoutUrl" v-else>
-										<button class="button is-danger">
-											<span class="icon"
-												><font-awesome-icon icon="sign-out-alt"
-											/></span>
-											<span>Log out</span>
-										</button>
-									</a>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</nav>
-		<section class="section main-section is-flex-grow-1">
-			<div class="container">
-				<div class="columns" v-if="fetchedCourses">
-					<transition name="fade" mode="out-in">
-						<div
-							class="column is-narrow"
-							key="hidden"
-							v-if="!$root.$data.showCourses"
-						>
-							<div class="courses-spacer">
-								<button
-									class="button is-small is-white collapse"
-									@click="$root.$data.showCourses = true"
-								>
-									<font-awesome-icon icon="angle-right" />
-								</button>
-							</div>
-						</div>
-						<div class="column is-narrow" key="shown" v-else>
-							<div style="position: relative">
-								<button
-									class="button is-small is-white collapse"
-									@click="$root.$data.showCourses = false"
-								>
-									<font-awesome-icon icon="angle-left" />
-								</button>
-								<b-menu class="sticky" :activable="false">
-									<b-menu-list label="Courses">
-										<div
-											class="course"
-											v-for="course in courses"
-											:key="course.id"
-										>
-											<b-menu-item
-												class="course-item"
-												:active="
-													course.queues.some((q) => $route.path.includes(q.id))
-												"
-												:expanded="
-													course.queues.length > 1 &&
-													course.queues.some((q) => $route.path.includes(q.id))
-												"
-												:href="'/queues/' + course.queues[0].id"
-												@click.prevent="
-													() => {
-														if (course.queues.length === 1) {
-															goToQueue(course.queues[0]);
-														}
-													}
-												"
-											>
-												<template v-slot:label>
-													<div class="level is-mobile">
-														<div class="level-left">
-															<div class="level-item">
-																{{ course.shortName }}
-															</div>
-														</div>
-														<div class="level-right">
-															<font-awesome-icon
-																:icon="[
-																	course.favorite ? 'fas' : 'far',
-																	'star',
-																]"
-																class="clickable-icon course-favorite"
-																:class="{
-																	'white-icon': course.queues.some((q) =>
-																		$route.path.includes(q.id)
-																	),
-																}"
-																@click="toggleFavorite(course)"
-															/>
-														</div>
-													</div>
-												</template>
-												<b-menu-item
-													class="course-item"
-													v-for="queue in course.queues"
-													:key="queue.id"
-													:label="queue.name"
-													:active="$route.path.includes(queue.id)"
-													:href="'/queues/' + queue.id"
-													@click.prevent="goToQueue(queue)"
-												></b-menu-item
-											></b-menu-item>
-										</div>
-									</b-menu-list>
-								</b-menu>
-							</div>
-						</div>
-					</transition>
-					<div class="column">
-						<transition name="fade" mode="out-in">
-							<router-view
-								:key="$route.fullPath"
-								:studentView="studentView"
-								@disconnected="restart"
-							></router-view>
-						</transition>
-					</div>
-				</div>
-				<b-loading :active="true" v-else></b-loading>
-			</div>
-		</section>
-		<footer class="footer" v-if="footerHtml">
-			<div class="content has-text-centered" v-html="footerHtml"></div>
-		</footer>
-	</div>
-</template>
-
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import Course from './types/Course';
-import Queue from './types/Queue';
-import { shouldShowCourses } from '@/util/SidebarVisibility';
-import { DialogProgrammatic as Dialog } from 'buefy';
-
-import { library } from '@fortawesome/fontawesome-svg-core';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import {
-	faSignInAlt,
-	faSignOutAlt,
-	faUserShield,
-	faStar as solidStar,
-	faUserGraduate,
-	faAngleLeft,
-	faAngleRight,
-	faChartLine,
-} from '@fortawesome/free-solid-svg-icons';
-import { faStar as regularStar } from '@fortawesome/free-regular-svg-icons';
-import { faGithub } from '@fortawesome/free-brands-svg-icons';
-import ErrorDialog from './util/ErrorDialog';
-import EscapeHTML from './util/Sanitization';
+  ChevronLeft,
+  ChevronRight,
+  LogIn,
+  LogOut,
+  GraduationCap,
+  ShieldCheck,
+  Github,
+  Star,
+  BarChart3,
+} from 'lucide-vue-next'
+import { useAppStore } from '@/stores/app'
+import { useUserStore } from '@/stores/user'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
+import Dialog from '@/components/ui/Dialog.vue'
 
-library.add(
-	faSignInAlt,
-	faSignOutAlt,
-	faUserShield,
-	faGithub,
-	solidStar,
-	regularStar,
-	faUserGraduate,
-	faAngleLeft,
-	faAngleRight,
-	faChartLine
-);
+const route = useRoute()
+const router = useRouter()
+const appStore = useAppStore()
+const userStore = useUserStore()
 
-@Component
-export default class App extends Vue {
-	fetchedCourses = false;
-	studentView = false;
+const fetchedCourses = ref(false)
 
-	created() {
-		if ('Notification' in window) {
-			Notification.requestPermission();
-		}
+// Computed
+const courses = computed(() => {
+  return appStore.courseList
+    .filter(c => c.queues && c.queues.length > 0)
+    .sort((a, b) => {
+      if (a.favorite !== b.favorite) return a.favorite ? -1 : 1
+      return a.short_name < b.short_name ? -1 : 1
+    })
+})
 
-		// Stop jitter on page load
-		this.$root.$data.showCourses = shouldShowCourses(
-			this,
-			this.$root.$data.queues[this.$route.params.qid]
-		);
+const admin = computed(() => {
+  return !appStore.studentView && userStore.isAdmin
+})
 
-		this.restart();
-	}
+const siteAdmin = computed(() => {
+  return !appStore.studentView && userStore.isSiteAdmin
+})
 
-	get loginUrl() {
-		return process.env.BASE_URL + 'api/oauth2login';
-	}
-
-	get logoutUrl() {
-		return process.env.BASE_URL + 'api/logout';
-	}
-
-	get courses() {
-		return Object.values(this.$root.$data.courses)
-			.filter((c: Course) => c.queues.length > 0)
-			.sort((a: Course, b: Course) => {
-				if (a.favorite !== b.favorite) {
-					return a.favorite ? -1 : 1;
-				}
-				return a.shortName < b.shortName ? -1 : 1;
-			});
-	}
-
-	get footerHtml() {
-		return process.env.VUE_APP_FOOTER_HTML;
-	}
-
-	get admin() {
-		return (
-			!this.studentView &&
-			this.$root.$data.loggedIn &&
-			(this.$root.$data.userInfo.site_admin ||
-				this.$root.$data.userInfo.admin_courses.length > 0)
-		);
-	}
-
-	get siteAdmin() {
-		return (
-			!this.studentView &&
-			this.$root.$data.loggedIn &&
-			this.$root.$data.userInfo.site_admin
-		);
-	}
-
-	goToQueue(q: Queue) {
-		this.$root.$data.showCourses = shouldShowCourses(this, q);
-		this.$router.push('/queues/' + q.id);
-	}
-
-	setStudentView(studentView: boolean) {
-		this.studentView = studentView;
-		this.$root.$data.studentView = studentView;
-	}
-
-	// Drop all courses and authorization information and re-start
-	// the loading process. This is essentially a complete refresh
-	// without actually refreshing the page.
-	restart() {
-		this.fetchedCourses = false;
-		Vue.set(this.$root.$data, 'courses', {});
-		Vue.set(this.$root.$data, 'queues', {});
-
-		Vue.set(this.$root.$data, 'userInfoLoaded', false);
-		Vue.set(this.$root.$data, 'loggedIn', false);
-		Vue.set(this.$root.$data, 'userInfo', {});
-
-		fetch(process.env.BASE_URL + 'api/courses')
-			.then((resp) => {
-				if (!resp.ok) return Promise.reject(resp);
-				return resp.json();
-			})
-			.then((data) => {
-				data.map((c: any) => {
-					const course = new Course(c);
-					course.favorite =
-						localStorage.getItem('favoriteCourses-' + course.id) !== null;
-					Vue.set(this.$root.$data.courses, c.id, course);
-					for (const q of course.queues) {
-						Vue.set(this.$root.$data.queues, q.id, q);
-					}
-				});
-				this.fetchedCourses = true;
-			})
-			.catch((error) => {
-				this.fetchedCourses = true;
-
-				if (error instanceof Response) {
-					return ErrorDialog(error);
-				}
-
-				Dialog.alert({
-					title: 'Request Failed',
-					message: `Failed to load courses. Please try again later. Error: ${EscapeHTML(
-						error
-					)}`,
-					type: 'is-danger',
-					hasIcon: true,
-				});
-			});
-
-		fetch(process.env.BASE_URL + 'api/users/@me')
-			.then((resp) => {
-				if (resp.status !== 200) {
-					return Promise.reject('not logged in');
-				}
-				return resp.json();
-			})
-			.then((data) => {
-				Vue.set(this.$root.$data, 'userInfoLoaded', true);
-				Vue.set(this.$root.$data, 'loggedIn', true);
-				Vue.set(this.$root.$data, 'userInfo', data);
-
-				// Check if there's a pending redirect after login
-				const redirectPath = localStorage.getItem('loginRedirect');
-				if (redirectPath) {
-					localStorage.removeItem('loginRedirect');
-					this.$router.push(redirectPath);
-				}
-			})
-			.catch(() => (this.$root.$data.userInfoLoaded = true));
-	}
-
-	toggleFavorite(c: Course) {
-		const original = c.favorite;
-		if (original) {
-			localStorage.removeItem('favoriteCourses-' + c.id);
-		} else {
-			localStorage.setItem('favoriteCourses-' + c.id, 'favorite');
-		}
-		c.favorite = !original;
-	}
+// Methods
+function goToQueue(queueId: string) {
+  router.push(`/queues/${queueId}`)
 }
+
+function goHome() {
+  appStore.showCourses = true
+  router.push('/')
+}
+
+function toggleFavorite(course: { id: string; favorite?: boolean }) {
+  appStore.toggleFavorite(course.id)
+}
+
+function isQueueActive(queueId: string) {
+  return route.path.includes(queueId)
+}
+
+function isCourseActive(queues: { id: string }[]) {
+  return queues.some(q => route.path.includes(q.id))
+}
+
+// Initialize
+onMounted(async () => {
+  if ('Notification' in window) {
+    Notification.requestPermission()
+  }
+
+  await Promise.all([
+    appStore.fetchCourses(),
+    userStore.fetchUserInfo(),
+  ])
+
+  fetchedCourses.value = true
+})
 </script>
 
-<style lang="scss">
-@import '~bulma/sass/utilities/_all';
+<template>
+  <div class="min-h-screen bg-base-100">
+    <!-- Container for nav, content, footer - enables sticky footer -->
+    <div class="min-h-screen flex flex-col px-4 md:w-[80vw] max-w-8xl mx-auto">
+      <!-- Navbar -->
+      <nav class="border-b border-base-300 py-6">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <!-- Title -->
+          <a href="/" class="text-3xl font-[500]" @click.prevent="goHome">
+            CS Office Hours
+          </a>
 
-$primary: #167df0;
-$menu-item-active-background-color: $primary;
+          <!-- Icons row -->
+          <div class="flex items-center gap-1 justify-between md:justify-end">
+            <div class="flex items-center gap-1">
+              <!-- Student View Toggle -->
+              <button
+                v-if="admin"
+                class="btn btn-ghost btn-sm"
+                title="Student View"
+                @click="appStore.studentView = true"
+              >
+                <GraduationCap class="w-6 h-6" />
+              </button>
+              <button
+                v-if="appStore.studentView"
+                class="btn btn-ghost btn-sm"
+                title="Exit Student View"
+                @click="appStore.studentView = false"
+              >
+                <ShieldCheck class="w-6 h-6" />
+              </button>
 
-// Setup $colors to use as bulma classes
-$colors: (
-	'white': (
-		$white,
-		$black,
-	),
-	'black': (
-		$black,
-		$white,
-	),
-	'light': (
-		$light,
-		$light-invert,
-	),
-	'dark': (
-		$dark,
-		$dark-invert,
-	),
-	'primary': (
-		$primary,
-		$primary-invert,
-	),
-	'info': (
-		$info,
-		$info-invert,
-	),
-	'success': (
-		$success,
-		$success-invert,
-	),
-	'warning': (
-		$warning,
-		$warning-invert,
-	),
-	'danger': (
-		$danger,
-		$danger-invert,
-	),
-);
+              <!-- Admin Panel -->
+              <RouterLink
+                v-if="admin"
+                to="/admin"
+                class="btn btn-ghost btn-sm"
+                title="Admin Panel"
+              >
+                <ShieldCheck class="w-6 h-6" />
+              </RouterLink>
 
-$footer-padding: 1.5rem 0.5rem;
+              <!-- Site Admin Logs -->
+              <a
+                v-if="siteAdmin"
+                href="/kibana"
+                target="_blank"
+                class="btn btn-ghost btn-sm"
+                title="System Logs"
+              >
+                <BarChart3 class="w-6 h-6" />
+              </a>
 
-@import '~bulma';
-@import '~buefy/src/scss/buefy';
+              <!-- GitHub -->
+              <a
+                href="https://github.com/developStorm/office-hours-queue"
+                target="_blank"
+                class="btn btn-ghost btn-sm"
+              >
+                <Github class="w-6 h-6" />
+              </a>
+            </div>
 
-.no-link-color {
-	text-decoration: none;
-	color: inherit;
-}
+            <!-- Login/Logout -->
+            <span v-if="!userStore.userInfoLoaded" class="btn btn-info btn-sm loading">
+              Log in
+            </span>
+            <a
+              v-else-if="!userStore.loggedIn"
+              href="/api/oauth2login"
+              class="btn btn-info btn-sm gap-2"
+            >
+              <LogIn class="w-4 h-4" />
+              Log in
+            </a>
+            <a
+              v-else
+              href="/api/logout"
+              class="btn btn-error btn-sm gap-2"
+            >
+              <LogOut class="w-4 h-4" />
+              Log out
+            </a>
+          </div>
+        </div>
+      </nav>
 
-.fade-enter-active,
-.fade-leave-active {
-	transition-duration: 0.1s;
-	transition-property: opacity;
-	transition-timing-function: ease;
-}
+      <!-- Main Section -->
+      <section class="flex-1 py-12">
+        <div v-if="fetchedCourses" class="flex flex-col md:flex-row gap-4 md:gap-6">
+          <!-- Sidebar: Collapsed state (desktop only) -->
+          <aside v-if="!appStore.showCourses" class="hidden md:block w-6 flex-shrink-0">
+            <button
+              class="btn btn-ghost btn-xs"
+              @click="appStore.showCourses = true"
+            >
+              <ChevronRight class="w-4 h-4" />
+            </button>
+          </aside>
 
-.fade-enter,
-.fade-leave-active {
-	opacity: 0;
-}
+          <!-- Sidebar: Expanded state -->
+          <aside v-if="appStore.showCourses" class="w-full md:w-40 flex-shrink-0">
+            <div class="md:sticky md:top-6">
+              <!-- COURSES header with collapse button -->
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold tracking-wider text-base-content/60 uppercase">
+                  Courses
+                </span>
+                <button
+                  class="btn btn-ghost btn-xs"
+                  @click="appStore.showCourses = false"
+                >
+                  <ChevronLeft class="w-4 h-4" />
+                </button>
+              </div>
 
-.slide-fade-enter-active {
-	transition: all 0.3s ease;
-}
+              <!-- Course list -->
+              <ul class="space-y-0">
+                <li v-for="course in courses" :key="course.id">
+                  <!-- Multi-queue course (expandable) -->
+                  <details v-if="course.queues.length > 1" :open="isCourseActive(course.queues)">
+                    <summary
+                      class="flex items-center justify-between px-3 py-2 text-base rounded cursor-pointer hover:bg-base-200"
+                      :class="{ 'bg-primary text-primary-content': isCourseActive(course.queues) }"
+                    >
+                      <span>{{ course.short_name }}</span>
+                      <button
+                        @click.stop="toggleFavorite(course)"
+                        class="opacity-60 hover:opacity-100"
+                      >
+                        <Star
+                          class="w-4 h-4"
+                          :class="course.favorite ? 'fill-current' : ''"
+                        />
+                      </button>
+                    </summary>
+                    <ul class="ml-4 mt-1 space-y-0">
+                      <li v-for="queue in course.queues" :key="queue.id">
+                        <a
+                          :href="`/queues/${queue.id}`"
+                          class="block px-3 py-2 text-base rounded hover:bg-base-200"
+                          :class="{ 'bg-primary text-primary-content': isQueueActive(queue.id) }"
+                          @click.prevent="goToQueue(queue.id)"
+                        >
+                          {{ queue.name }}
+                        </a>
+                      </li>
+                    </ul>
+                  </details>
 
-.slide-fade-leave-active {
-	transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
-}
+                  <!-- Single-queue course -->
+                  <a
+                    v-else
+                    :href="`/queues/${course.queues[0]?.id}`"
+                    class="flex items-center justify-between px-3 py-2 text-base rounded hover:bg-base-200"
+                    :class="{ 'bg-primary text-primary-content': isCourseActive(course.queues) }"
+                    @click.prevent="course.queues[0] && goToQueue(course.queues[0].id)"
+                  >
+                    <span>{{ course.short_name }}</span>
+                    <button
+                      @click.stop="toggleFavorite(course)"
+                      class="opacity-60 hover:opacity-100"
+                    >
+                      <Star
+                        class="w-4 h-4"
+                        :class="course.favorite ? 'fill-current' : ''"
+                      />
+                    </button>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </aside>
 
-.slide-fade-enter,
-.slide-fade-leave-to
+          <!-- Main Content -->
+          <main class="flex-1 min-w-0 p-3">
+            <RouterView :student-view="appStore.studentView" />
+          </main>
+        </div>
 
-/* .slide-fade-leave-active below version 2.1.8 */ {
-	transform: translateX(10px);
-	opacity: 0;
-}
+        <!-- Loading state -->
+        <div v-else class="flex justify-center items-center h-64">
+          <span class="loading loading-spinner loading-lg"></span>
+        </div>
+      </section>
 
-.sticky {
-	/* Don't attempt to sticky on mobile */
-	@media only screen and (min-width: 769px) {
-		position: sticky;
-		top: 1.5em;
-	}
-}
+      <!-- Footer -->
+      <footer class="bg-base-200 py-6 text-center text-sm text-base-content/70">
+        <p class="mb-2">
+          Interested in using this for your class?
+          <a
+            href="https://forms.gle/1CPmifer8WjyfgXP6"
+            target="_blank"
+            class="link link-primary"
+          >Fill out this form!</a>
+        </p>
+        <p>
+          Created by
+          <a
+            href="https://github.com/CarsonHoffman/office-hours-queue"
+            target="_blank"
+            class="link"
+          >Carson Hoffman</a>
+          at University of Michigan. Operated by
+          <a
+            href="mailto:cs-oh-queue-dev@lists.stanford.edu"
+            class="link"
+          >cs-oh-queue-dev</a>
+          and CSD-CF at Stanford.
+        </p>
+      </footer>
+    </div>
 
-.course {
-	display: flex;
-	align-items: start;
-}
-
-.course-item {
-	flex-grow: 1;
-}
-
-.clickable-icon {
-	pointer-events: auto;
-	cursor: pointer;
-}
-
-.course-favorite {
-	margin-left: 1em;
-}
-
-.white-icon {
-	color: white;
-}
-
-.hero-body {
-	padding: 3rem 2rem;
-}
-
-.is-min-height-100vh {
-	min-height: 100vh;
-}
-</style>
-
-<style scoped>
-.collapse {
-	position: absolute;
-	top: -0.5em;
-	right: 0;
-	z-index: 1;
-}
-
-.courses-spacer {
-	position: relative;
-	width: 1.2em;
-}
-
-@media screen and (max-width: 769px) {
-	.courses-spacer {
-		width: 100%;
-	}
-}
-
-@media screen and (min-width: 769px) and (max-width: 1024px) {
-	.courses-spacer {
-		width: 2em;
-	}
-}
-</style>
+    <!-- Global UI components -->
+    <ToastContainer />
+    <Dialog />
+  </div>
+</template>

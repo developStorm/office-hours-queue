@@ -1,329 +1,312 @@
-<template>
-	<div>
-		<template
-			v-if="
-				queue.config && queue.config.prompts && queue.config.prompts.length > 0
-			"
-		>
-			<div class="field" v-for="(prompt, i) in queue.config.prompts" :key="i">
-				<label class="label">{{ prompt }}</label>
-				<div class="control has-icons-left">
-					<input
-						class="input"
-						v-model="customResponses[i]"
-						type="text"
-						:class="{ 'is-danger': isDescriptionTooLong }"
-					/>
-					<span class="icon is-small is-left">
-						<font-awesome-icon icon="question" />
-					</span>
-				</div>
-			</div>
-			<div class="help has-text-danger" v-if="isDescriptionTooLong">
-				Characters: {{ totalCustomResponseLength }}/{{ maxDescriptionLength }}
-			</div>
-		</template>
-		<div class="field" v-else>
-			<label class="label">Description</label>
-			<div class="control has-icons-left">
-				<input
-					class="input"
-					v-model="description"
-					type="text"
-					placeholder="Help us help you—please be descriptive!"
-					:class="{ 'is-danger': isDescriptionTooLong }"
-				/>
-				<span class="icon is-small is-left">
-					<font-awesome-icon icon="question" />
-				</span>
-			</div>
-			<div class="help has-text-danger" v-if="isDescriptionTooLong">
-				Characters: {{ description.length }}/{{ maxDescriptionLength }}
-			</div>
-		</div>
-		<div
-			class="field"
-			v-if="queue.config === null || queue.config.enableLocationField"
-		>
-			<label class="label" v-if="queue.config === null"
-				><b-skeleton width="7em"
-			/></label>
-			<label class="label" v-else-if="!queue.config.virtual">Location</label>
-			<label class="label" v-else>Meeting Link</label>
-			<div class="control has-icons-left">
-				<input
-					class="input"
-					v-model="location"
-					type="text"
-					:class="{ 'is-danger': isLocationTooLong }"
-				/>
-				<span class="icon is-small is-left">
-					<b-skeleton
-						position="is-centered"
-						width="1em"
-						v-if="queue.config === null"
-					/>
-					<font-awesome-icon
-						icon="map-marker"
-						v-else-if="!queue.config.virtual"
-					/>
-					<font-awesome-icon icon="link" v-else />
-				</span>
-			</div>
-			<div class="help has-text-danger" v-if="isLocationTooLong">
-				Characters: {{ location.length }}/{{ maxLocationLength }}
-			</div>
-		</div>
-		<div class="field">
-			<div class="control level-left">
-				<button
-					class="button is-success level-item"
-					:disabled="!canSignUp"
-					@click="signUp"
-					v-if="myEntry === null"
-				>
-					<span class="icon"><font-awesome-icon icon="user-plus" /></span>
-					<span>Sign Up</span>
-				</button>
-				<button
-					class="button is-warning level-item"
-					@click="updateRequest"
-					v-else-if="myEntryModified"
-					:disabled="isDescriptionTooLong || isLocationTooLong"
-				>
-					<span class="icon"><font-awesome-icon icon="edit" /></span>
-					<span>Update Request</span>
-				</button>
-				<button class="button is-success level-item" disabled="true" v-else>
-					<span class="icon"><font-awesome-icon icon="check" /></span>
-					<span>On queue at position #{{ this.myEntryIndex + 1 }}</span>
-				</button>
-				<p class="level-item" v-if="!$root.$data.loggedIn">
-					Log in to sign up!
-				</p>
-			</div>
-		</div>
-	</div>
-</template>
-
-<script lang="ts">
-import Vue from 'vue';
-import { Moment } from 'moment';
-import { Component, Prop, Watch } from 'vue-property-decorator';
-import OrderedQueue from '@/types/OrderedQueue';
-import { QueueEntry } from '@/types/QueueEntry';
-import ErrorDialog from '@/util/ErrorDialog';
-import EscapeHTML from '@/util/Sanitization';
-import * as PromptHandler from '@/util/PromptHandler';
-
-import { library } from '@fortawesome/fontawesome-svg-core';
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import type { Moment } from 'moment-timezone'
 import {
-	faUser,
-	faQuestion,
-	faLink,
-	faUserPlus,
-	faCheck,
-	faEdit,
-	faMapMarker,
-} from '@fortawesome/free-solid-svg-icons';
+  HelpCircle,
+  Link,
+  MapPin,
+  UserPlus,
+  Check,
+  Pencil,
+} from 'lucide-vue-next'
+import type { Queue, QueueConfiguration } from '@/types'
+import { useUserStore } from '@/stores/user'
+import { useQueueStore } from '@/stores/queue'
+import { globalDialog } from '@/composables/useDialog'
+import ErrorDialog from '@/utils/ErrorDialog'
+import { escapeHTML } from '@/utils/sanitization'
+import * as PromptHandler from '@/utils/promptHandler'
 
-library.add(
-	faUser,
-	faQuestion,
-	faLink,
-	faUserPlus,
-	faCheck,
-	faEdit,
-	faMapMarker
-);
+const props = defineProps<{
+  queue: Queue
+  time: Moment
+}>()
 
-@Component
-export default class QueueSignup extends Vue {
-	description = '';
-	location = '';
-	customResponses: string[] = [];
+const userStore = useUserStore()
+const queueStore = useQueueStore()
 
-	// Character limits matching server-side validation
-	readonly maxDescriptionLength = 1500;
-	readonly maxLocationLength = 300;
+const description = ref('')
+const location = ref('')
+const customResponses = ref<string[]>([])
 
-	@Prop({ required: true }) queue!: OrderedQueue;
-	@Prop({ required: true }) time!: Moment;
+// Character limits matching server-side validation
+const maxDescriptionLength = 1500
+const maxLocationLength = 300
 
-	private hasDescWithPrompts(): boolean {
-		return PromptHandler.hasCustomPrompts(this.queue.config);
-	}
+const config = computed(() => queueStore.config as QueueConfiguration | null)
 
-	private descWithPromptsToDescription(): string {
-		return PromptHandler.responsesToDescription(this.customResponses);
-	}
+const hasCustomPrompts = computed(() => PromptHandler.hasCustomPrompts(config.value ?? undefined))
 
-	private descriptionToDescWithPrompts(description: string): string[] {
-		return PromptHandler.descriptionToResponses(description);
-	}
+const prompts = computed(() => config.value?.prompts || [])
 
-	@Watch('myEntry')
-	myEntryUpdated(newEntry: QueueEntry | null) {
-		if (newEntry !== null) {
-			if (this.hasDescWithPrompts()) {
-				this.customResponses = this.descriptionToDescWithPrompts(
-					newEntry.description || ''
-				);
-			} else {
-				this.description = newEntry.description || '';
-			}
-			this.location = newEntry.location || '';
-		}
-	}
+// Initialize customResponses when prompts change
+watch(prompts, (newPrompts) => {
+  if (newPrompts.length > 0 && customResponses.value.length !== newPrompts.length) {
+    customResponses.value = new Array(newPrompts.length).fill('')
+  }
+}, { immediate: true })
 
-	get totalCustomResponseLength(): number {
-		if (!this.customResponses.length) return 0;
-		return this.descWithPromptsToDescription().length;
-	}
+const totalCustomResponseLength = computed(() => {
+  if (!customResponses.value.length) return 0
+  return PromptHandler.responsesToDescription(customResponses.value).length
+})
 
-	get isDescriptionTooLong(): boolean {
-		return this.hasDescWithPrompts()
-			? this.totalCustomResponseLength > this.maxDescriptionLength
-			: this.description.length > this.maxDescriptionLength;
-	}
+const isDescriptionTooLong = computed(() => {
+  return hasCustomPrompts.value
+    ? totalCustomResponseLength.value > maxDescriptionLength
+    : description.value.length > maxDescriptionLength
+})
 
-	get isLocationTooLong(): boolean {
-		return this.location.length > this.maxLocationLength;
-	}
+const isLocationTooLong = computed(() => {
+  return location.value.length > maxLocationLength
+})
 
-	get canSignUp(): boolean {
-		// Do not change the order of the expressions in this boolean
-		// expression. Because myEntry is a computed property, it seems
-		// that it has to be calculated at least once in order to be
-		// reactive, which means that putting it at the end of the
-		// expression means it isn't calculated until all of the previous
-		// parts of the expression are true, which is only calculated when
-		// deemed necessary based on reactivity. Thus, if one of the previous
-		// parts of the expression return false on the first calculation,
-		// we aren't reactive on myEntry until one of the previous
-		// parts had a reactive update. This took way too long to figure out :(
+const myEntryIndex = computed(() => {
+  const email = userStore.userInfo?.email
+  if (!email) return -1
+  return queueStore.entries.findIndex(e => e.email === email)
+})
 
-		const isValidDescription = this.hasDescWithPrompts()
-			? PromptHandler.areResponsesValid(
-					this.customResponses,
-					this.queue.config!.prompts!
-			  )
-			: this.description.trim() !== '';
+const myEntry = computed(() => {
+  if (myEntryIndex.value === -1) return null
+  return queueStore.entries[myEntryIndex.value]
+})
 
-		return (
-			this.myEntry === null &&
-			this.$root.$data.loggedIn &&
-			this.queue.isOpen(this.time) &&
-			isValidDescription &&
-			(this.location.trim() !== '' ||
-				!this.queue.config?.enableLocationField) &&
-			!this.isDescriptionTooLong &&
-			!this.isLocationTooLong
-		);
-	}
+const myEntryModified = computed(() => {
+  const e = myEntry.value
+  if (!e) return false
 
-	get myEntryIndex(): number {
-		return this.queue.entryIndex(this.$root.$data.userInfo.email);
-	}
+  if (hasCustomPrompts.value) {
+    try {
+      const currentDesc = PromptHandler.responsesToDescription(customResponses.value)
+      return currentDesc !== e.description || e.location !== location.value
+    } catch {
+      return true
+    }
+  }
 
-	get myEntry(): QueueEntry | null {
-		return this.queue.entry(this.$root.$data.userInfo.email);
-	}
+  return e.description !== description.value || e.location !== location.value
+})
 
-	get myEntryModified() {
-		const e = this.myEntry;
-		if (e === null) return false;
+const isValidDescription = computed(() => {
+  return hasCustomPrompts.value
+    ? PromptHandler.areResponsesValid(customResponses.value, prompts.value)
+    : description.value.trim() !== ''
+})
 
-		if (this.hasDescWithPrompts()) {
-			try {
-				const parsedDescription = JSON.parse(e.description || '{}');
-				return (
-					JSON.stringify(parsedDescription) !==
-						this.descWithPromptsToDescription() || e.location !== this.location
-				);
-			} catch (e) {
-				// If description is not valid JSON, consider it modified
-				return true;
-			}
-		}
+const canSignUp = computed(() => {
+  return (
+    myEntry.value === null &&
+    userStore.loggedIn &&
+    queueStore.queueOpen &&
+    isValidDescription.value &&
+    (location.value.trim() !== '' || !config.value?.enable_location_field) &&
+    !isDescriptionTooLong.value &&
+    !isLocationTooLong.value
+  )
+})
 
-		return e.description !== this.description || e.location !== this.location;
-	}
+// Watch for entry changes to update form
+watch(myEntry, (newEntry) => {
+  if (newEntry) {
+    if (hasCustomPrompts.value) {
+      customResponses.value = PromptHandler.descriptionToResponses(newEntry.description)
+      // Ensure array length matches prompts
+      while (customResponses.value.length < prompts.value.length) {
+        customResponses.value.push('')
+      }
+    } else {
+      description.value = newEntry.description || ''
+    }
+    location.value = newEntry.location || ''
+  }
+}, { immediate: true })
 
-	signUp() {
-		if (this.queue.config?.confirmSignupMessage !== undefined) {
-			return this.$buefy.dialog.confirm({
-				title: 'Sign Up',
-				message: EscapeHTML(this.queue.config!.confirmSignupMessage),
-				type: 'is-warning',
-				hasIcon: true,
-				onConfirm: this.signUpRequest,
-			});
-		}
+function getDescriptionValue(): string {
+  return hasCustomPrompts.value
+    ? PromptHandler.responsesToDescription(customResponses.value)
+    : description.value
+}
 
-		this.signUpRequest();
-	}
+async function signUp() {
+  if (config.value?.confirm_signup_message) {
+    const confirmed = await globalDialog.confirm({
+      title: 'Sign Up',
+      message: escapeHTML(config.value.confirm_signup_message),
+      type: 'warning',
+      hasIcon: true,
+      confirmText: 'Sign Up',
+      cancelText: 'Cancel',
+    })
+    if (!confirmed) return
+  }
 
-	signUpRequest() {
-		// No, this doesn't prevent students from manually hitting the API to specify
-		// a location. l33t h4x!
-		const location = this.queue.config?.enableLocationField
-			? this.location
-			: '(disabled)';
+  await signUpRequest()
+}
 
-		const description = this.hasDescWithPrompts()
-			? this.descWithPromptsToDescription()
-			: this.description;
+async function signUpRequest() {
+  const locationValue = config.value?.enable_location_field
+    ? location.value
+    : '(disabled)'
 
-		fetch(process.env.BASE_URL + `api/queues/${this.queue.id}/entries`, {
-			method: 'POST',
-			body: JSON.stringify({
-				description,
-				location,
-			}),
-		}).then((res) => {
-			if (res.status !== 201) {
-				return ErrorDialog(res);
-			}
+  const res = await fetch(`/api/queues/${props.queue.id}/entries`, {
+    method: 'POST',
+    body: JSON.stringify({
+      description: getDescriptionValue(),
+      location: locationValue,
+    }),
+  })
 
-			this.$buefy.toast.open({
-				duration: 5000,
-				message: `You're on the queue, ${EscapeHTML(
-					this.$root.$data.userInfo.first_name
-				)}!`,
-				type: 'is-success',
-			});
-		});
-	}
+  if (res.status !== 201) {
+    return ErrorDialog(res)
+  }
 
-	updateRequest() {
-		const description = this.hasDescWithPrompts()
-			? this.descWithPromptsToDescription()
-			: this.description;
+  globalDialog.toast(
+    `You're on the queue, ${escapeHTML(userStore.userInfo?.first_name || '')}!`,
+    'success'
+  )
+}
 
-		if (this.myEntry !== null) {
-			fetch(
-				process.env.BASE_URL +
-					`api/queues/${this.queue.id}/entries/${this.myEntry.id}`,
-				{
-					method: 'PUT',
-					body: JSON.stringify({
-						description,
-						location: this.location,
-					}),
-				}
-			).then((res) => {
-				if (res.status !== 204) {
-					return ErrorDialog(res);
-				}
+async function updateRequest() {
+  if (!myEntry.value) return
 
-				this.$buefy.toast.open({
-					duration: 5000,
-					message: 'Your request has been updated!',
-					type: 'is-success',
-				});
-			});
-		}
-	}
+  const res = await fetch(
+    `/api/queues/${props.queue.id}/entries/${myEntry.value.id}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        description: getDescriptionValue(),
+        location: location.value,
+      }),
+    }
+  )
+
+  if (res.status !== 204) {
+    return ErrorDialog(res)
+  }
+
+  globalDialog.toast('Your request has been updated!', 'success')
 }
 </script>
+
+<template>
+  <div class="space-y-4">
+    <!-- Custom prompts (when configured) -->
+    <template v-if="hasCustomPrompts">
+      <div v-for="(prompt, i) in prompts" :key="i" class="form-control">
+        <label class="label">
+          <span class="label-text font-semibold whitespace-normal break-words">{{ prompt }}</span>
+        </label>
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-base-content/50 pointer-events-none">
+            <HelpCircle class="w-4 h-4" />
+          </span>
+          <input
+            v-model="customResponses[i]"
+            type="text"
+            class="input input-bordered w-full pl-10"
+            :class="{ 'input-error': isDescriptionTooLong }"
+          />
+        </div>
+      </div>
+      <label v-if="isDescriptionTooLong" class="label">
+        <span class="label-text-alt text-error">
+          Characters: {{ totalCustomResponseLength }}/{{ maxDescriptionLength }}
+        </span>
+      </label>
+    </template>
+
+    <!-- Default description field (when no custom prompts) -->
+    <div v-else class="form-control">
+      <label class="label">
+        <span class="label-text">Description</span>
+      </label>
+      <div class="relative">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-base-content/50 pointer-events-none">
+          <HelpCircle class="w-4 h-4" />
+        </span>
+        <input
+          v-model="description"
+          type="text"
+          class="input input-bordered w-full pl-10"
+          :class="{ 'input-error': isDescriptionTooLong }"
+          placeholder="Help us help you—please be descriptive!"
+        />
+      </div>
+      <label v-if="isDescriptionTooLong" class="label">
+        <span class="label-text-alt text-error">
+          Characters: {{ description.length }}/{{ maxDescriptionLength }}
+        </span>
+      </label>
+    </div>
+
+    <!-- Location field -->
+    <div v-if="config === null || config.enable_location_field" class="form-control">
+      <label class="label">
+        <span class="label-text" v-if="config === null">
+          <span class="skeleton w-20 h-4"></span>
+        </span>
+        <span class="label-text" v-else-if="!config.virtual">Location</span>
+        <span class="label-text" v-else>Meeting Link</span>
+      </label>
+      <div class="relative">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-base-content/50 pointer-events-none">
+          <span v-if="config === null" class="skeleton w-4 h-4"></span>
+          <MapPin v-else-if="!config.virtual" class="w-4 h-4" />
+          <Link v-else class="w-4 h-4" />
+        </span>
+        <input
+          v-model="location"
+          type="text"
+          class="input input-bordered w-full pl-10"
+          :class="{ 'input-error': isLocationTooLong }"
+        />
+      </div>
+      <label v-if="isLocationTooLong" class="label">
+        <span class="label-text-alt text-error">
+          Characters: {{ location.length }}/{{ maxLocationLength }}
+        </span>
+      </label>
+    </div>
+
+    <!-- Sign up / Update buttons -->
+    <div class="flex items-center gap-4">
+      <!-- Sign up button -->
+      <button
+        v-if="myEntry === null"
+        class="btn btn-success gap-2"
+        :disabled="!canSignUp"
+        @click="signUp"
+      >
+        <UserPlus class="w-4 h-4" />
+        Sign Up
+      </button>
+
+      <!-- Update button -->
+      <button
+        v-else-if="myEntryModified"
+        class="btn btn-warning gap-2"
+        :disabled="isDescriptionTooLong || isLocationTooLong"
+        @click="updateRequest"
+      >
+        <Pencil class="w-4 h-4" />
+        Update Request
+      </button>
+
+      <!-- On queue indicator -->
+      <button
+        v-else
+        class="btn btn-success gap-2"
+        disabled
+      >
+        <Check class="w-4 h-4" />
+        On queue at position #{{ myEntryIndex + 1 }}
+      </button>
+
+      <!-- Login prompt -->
+      <p v-if="!userStore.loggedIn" class="text-sm text-base-content/60">
+        Log in to sign up!
+      </p>
+    </div>
+  </div>
+</template>

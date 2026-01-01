@@ -1,47 +1,32 @@
-import Vue from 'vue';
-import VueRouter, { RouteConfig } from 'vue-router';
-import Home from '../views/Home.vue';
-import Queue from '../views/Queue.vue';
-import AdminPage from '@/views/Admin.vue';
+import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '@/views/HomeView.vue'
 
-Vue.use(VueRouter);
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView,
+    },
+    {
+      path: '/queues/:qid',
+      name: 'queue',
+      component: () => import('@/views/QueueView.vue'),
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/views/AdminView.vue'),
+    },
+  ],
+})
 
-const routes: Array<RouteConfig> = [
-	{
-		path: '/',
-		name: 'Home',
-		component: Home,
-		meta: {
-			title: 'CS Office Hours',
-		},
-	},
-	{
-		path: '/queues/:qid',
-		name: 'Queue',
-		component: Queue,
-	},
-	{
-		path: '/admin',
-		name: 'Admin',
-		component: AdminPage,
-		meta: {
-			title: 'Course Admin Controls',
-		},
-	},
-];
+router.beforeEach((to, _from, next) => {
+  if (to.name === 'home') {
+    document.title = 'Office Hours Queue'
+  }
+  next()
+})
 
-const router = new VueRouter({
-	mode: 'history',
-	base: process.env.BASE_URL,
-	routes,
-});
-
-router.beforeEach((to, _, next) => {
-	if (to.meta !== undefined && to.meta.title !== undefined) {
-		document.title = to.meta.title;
-	}
-
-	next();
-});
-
-export default router;
+export default router

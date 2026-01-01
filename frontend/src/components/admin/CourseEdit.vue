@@ -1,94 +1,115 @@
-<template>
-	<div class="modal-card" style="width: auto">
-		<header class="modal-card-head">
-			<p class="modal-card-title">Course Info</p>
-			<button type="button" class="delete" @click="$emit('close')" />
-		</header>
-		<section class="modal-card-body">
-			<div class="block">
-				<b-field label="Short Name">
-					<b-input v-model="shortName" />
-				</b-field>
-				<b-field label="Full Name">
-					<b-input v-model="fullName" />
-				</b-field>
-				<b-field label="Course Admins">
-					<b-input
-						style="min-width: 50vw"
-						type="textarea"
-						v-model="adminsText"
-					/>
-				</b-field>
-			</div>
-		</section>
-		<footer class="modal-card-foot">
-			<button class="button" type="button" @click="$emit('close')">
-				Close
-			</button>
-			<button class="button is-success" type="button" @click="saveCourse">
-				Save
-			</button>
-		</footer>
-	</div>
-</template>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { X } from 'lucide-vue-next'
+import { globalDialog } from '@/composables/useDialog'
+import { escapeHTML } from '@/utils/sanitization'
 
-<script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator';
-import EscapeHTML from '@/util/Sanitization';
+const props = defineProps<{
+  defaultShortName: string
+  defaultFullName: string
+  defaultAdmins: string[]
+}>()
 
-import { library } from '@fortawesome/fontawesome-svg-core';
-import { faTimes } from '@fortawesome/free-solid-svg-icons';
+const emit = defineEmits<{
+  close: []
+  saved: [shortName: string, fullName: string, admins: string[]]
+}>()
 
-library.add(faTimes);
+const shortName = ref('')
+const fullName = ref('')
+const adminsText = ref('')
 
-@Component({})
-export default class QueueManage extends Vue {
-	@Prop({ required: true }) defaultShortName!: string;
-	@Prop({ required: true }) defaultFullName!: string;
-	@Prop({ required: true }) defaultAdmins!: string[];
+onMounted(() => {
+  shortName.value = props.defaultShortName
+  fullName.value = props.defaultFullName
+  adminsText.value = JSON.stringify(props.defaultAdmins, null, 4)
+})
 
-	shortName = '';
-	fullName = '';
-	adminsText = '';
+function saveCourse() {
+  try {
+    const admins: string[] = JSON.parse(adminsText.value)
+    if (!Array.isArray(admins) || admins.some((a) => typeof a !== 'string')) {
+      globalDialog.alert({
+        title: 'Error',
+        message: 'Admins input is not array of strings',
+        type: 'danger',
+      })
+      return
+    }
 
-	created() {
-		this.shortName = this.defaultShortName;
-		this.fullName = this.defaultFullName;
-		this.adminsText = JSON.stringify(this.defaultAdmins, null, 4);
-	}
+    const allAdmins = new Set<string>()
+    for (const a of admins) {
+      if (allAdmins.has(a)) {
+        globalDialog.alert({
+          title: 'Error',
+          message: `User ${escapeHTML(a)} appears in the admins array more than once.`,
+          type: 'danger',
+        })
+        return
+      }
+      allAdmins.add(a)
+    }
 
-	saveCourse() {
-		try {
-			const admins: string[] = JSON.parse(this.adminsText);
-			if (!Array.isArray(admins) || admins.some((a) => typeof a !== 'string')) {
-				this.$buefy.dialog.alert({
-					message: 'Admins input is not array of strings',
-					type: 'is-danger',
-				});
-				return;
-			}
-
-			const allAdmins = new Set<string>();
-			for (const a of admins) {
-				if (allAdmins.has(a)) {
-					this.$buefy.dialog.alert({
-						message: `User ${EscapeHTML(
-							a
-						)} appears in the admins array more than once.`,
-						type: 'is-danger',
-					});
-					return;
-				}
-				allAdmins.add(a);
-			}
-
-			this.$emit('saved', this.shortName, this.fullName, admins);
-		} catch {
-			this.$buefy.dialog.alert({
-				message: 'Admins input is not valid JSON.',
-				type: 'is-danger',
-			});
-		}
-	}
+    emit('saved', shortName.value, fullName.value, admins)
+  } catch {
+    globalDialog.alert({
+      title: 'Error',
+      message: 'Admins input is not valid JSON.',
+      type: 'danger',
+    })
+  }
 }
 </script>
+
+<template>
+  <div class="modal modal-open">
+    <div class="modal-box max-w-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg">Course Info</h3>
+        <button class="btn btn-ghost btn-sm btn-circle" @click="emit('close')">
+          <X class="w-4 h-4" />
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Short Name</span>
+          </label>
+          <input
+            v-model="shortName"
+            type="text"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Full Name</span>
+          </label>
+          <input
+            v-model="fullName"
+            type="text"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Course Admins (JSON array of emails)</span>
+          </label>
+          <textarea
+            v-model="adminsText"
+            class="textarea textarea-bordered w-full h-32"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-action">
+        <button class="btn" @click="emit('close')">Close</button>
+        <button class="btn btn-success" @click="saveCourse">Save</button>
+      </div>
+    </div>
+    <div class="modal-backdrop" @click="emit('close')"></div>
+  </div>
+</template>

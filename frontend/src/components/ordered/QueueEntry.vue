@@ -1,534 +1,365 @@
-<template>
-	<div class="box entry">
-		<article class="media">
-			<div class="media-content" style="overflow-x: visible">
-				<div class="content">
-					<div class="level icon-row is-mobile">
-						<div class="level-left">
-							<font-awesome-icon
-								icon="user"
-								class="mr-2 level-item mt-1"
-								fixed-width
-							/>
-							<span class="level-item stay-in-container">
-								<strong>{{ name }}</strong>
-							</span>
-						</div>
-					</div>
-					<span v-if="!anonymous">
-						<div class="level icon-row is-mobile">
-							<div class="level-left">
-								<font-awesome-icon
-									icon="at"
-									class="mr-2 level-item mt-1"
-									fixed-width
-								/>
-								<span class="level-item stay-in-container">{{
-									entry.email
-								}}</span>
-							</div>
-						</div>
-						<template v-if="hasCustomPrompts">
-							<div
-								class="level icon-row is-mobile"
-								v-for="(reply, i) in promptResponses"
-								:key="i"
-							>
-								<div class="level-left">
-									<font-awesome-icon
-										icon="question"
-										class="mr-2 level-item mt-1"
-										fixed-width
-									/>
-									<span class="level-item stay-in-container">{{ reply }}</span>
-								</div>
-							</div>
-						</template>
-						<template v-else>
-							<div class="level icon-row is-mobile">
-								<div class="level-left">
-									<font-awesome-icon
-										icon="question"
-										class="mr-2 level-item mt-1"
-										fixed-width
-									/>
-									<span class="level-item stay-in-container">{{
-										entry.description
-									}}</span>
-								</div>
-							</div>
-						</template>
-						<div
-							class="level icon-row is-mobile"
-							v-if="location != '(disabled)'"
-						>
-							<div class="level-left">
-								<font-awesome-icon
-									:icon="queue?.config?.virtual ? 'link' : 'map-marker'"
-									class="mr-2 level-item mt-1"
-									fixed-width
-								/>
-								<p
-									class="level-item"
-									:class="
-										queue?.config?.virtual
-											? 'link-in-container'
-											: 'stay-in-container'
-									"
-									v-html="location"
-								></p>
-							</div>
-						</div>
-					</span>
-					<div class="level icon-row is-mobile">
-						<div class="level-left">
-							<font-awesome-icon
-								icon="clock"
-								class="mr-2 level-item mt-1"
-								fixed-width
-							/>
-							<b-tooltip :label="entry.tooltipTimestamp">
-								<span class="level-item stay-in-container">{{
-									humanizedTimestamp
-								}}</span>
-							</b-tooltip>
-						</div>
-					</div>
-					<div class="level icon-row is-mobile" v-if="entry.priority !== 0">
-						<div class="level-left">
-							<font-awesome-icon
-								icon="sort-numeric-up"
-								class="mr-2 level-item mt-1"
-								fixed-width
-								v-if="entry.priority > 0"
-							/>
-							<font-awesome-icon
-								icon="sort-numeric-down"
-								class="mr-2 level-item mt-1"
-								fixed-width
-								v-else
-							/>
-							<span class="level-item stay-in-container"
-								>Priority:
-								{{ (entry.priority > 0 ? '+' : '') + entry.priority }}</span
-							>
-						</div>
-					</div>
-					<div class="level icon-row is-mobile" v-if="stack">
-						<div class="level-left">
-							<font-awesome-icon
-								icon="times"
-								class="mr-2 level-item mt-1"
-								fixed-width
-							/>
-							<span class="level-item stay-in-container">{{
-								entry.removedBy
-							}}</span>
-						</div>
-					</div>
-					<div v-if="!anonymous">
-						<br />
-						<div class="buttons is-fullwidth">
-							<template v-if="!stack">
-								<button
-									class="button is-success"
-									:class="{ 'is-loading': helpingRequestRunning }"
-									v-on:click="setHelping(true)"
-									v-if="admin && !entry.isBeingHelped"
-								>
-									<span class="icon"
-										><font-awesome-icon icon="hands-helping"
-									/></span>
-									<span>Help</span>
-								</button>
-								<template v-else-if="admin">
-									<button
-										class="button is-success"
-										:class="{ 'is-loading': removeRequestRunning }"
-										v-on:click="removeEntry"
-									>
-										<span class="icon"><font-awesome-icon icon="check" /></span>
-										<span>Done</span>
-									</button>
-									<button
-										class="button is-danger"
-										:class="{ 'is-loading': helpingRequestRunning }"
-										v-on:click="setHelping(false)"
-									>
-										<span class="icon"><font-awesome-icon icon="undo" /></span>
-										<span>Undo</span>
-									</button>
-								</template>
-								<button
-									class="button is-danger"
-									:class="{ 'is-loading': removeRequestRunning }"
-									v-on:click="removeEntry"
-									v-else-if="!entry.isBeingHelped"
-								>
-									<span class="icon"><font-awesome-icon icon="times" /></span>
-									<span>Cancel</span>
-								</button>
-							</template>
-							<template v-if="!entry.pinned && admin">
-								<button
-									class="button is-primary"
-									:class="{ 'is-loading': pinEntryRequestRunning }"
-									v-on:click="pinEntry"
-								>
-									<span class="icon"
-										><font-awesome-icon icon="thumbtack"
-									/></span>
-									<span>Pin</span>
-								</button>
-							</template>
-							<template v-if="stack && entry.helped">
-								<button
-									class="button is-danger"
-									:class="{ 'is-loading': notHelpedRequestRunning }"
-									@click="setNotHelped"
-								>
-									<span class="icon"
-										><font-awesome-icon icon="frown-open"
-									/></span>
-									<span>Not helped</span>
-								</button>
-							</template>
-							<template v-if="admin">
-								<b-tooltip
-									:label="entry.online ? '' : 'Cannot message offline user'"
-									position="is-top"
-									:active="!entry.online"
-								>
-									<button
-										class="button is-warning"
-										@click="messageUser"
-										:disabled="!entry.online"
-									>
-										<span class="icon"
-											><font-awesome-icon icon="envelope"
-										/></span>
-										<span>Message</span>
-									</button>
-								</b-tooltip>
-							</template>
-						</div>
-					</div>
-				</div>
-			</div>
-			<figure class="media-right">
-				<transition-group name="slide-fade" mode="out-in">
-					<div class="is-pulled-right" key="online" v-if="admin">
-						<b-tooltip
-							:label="
-								'This student is currently ' +
-								(entry.online ? 'online' : 'offline') +
-								'.'
-							"
-							:class="{
-								'is-success': entry.online,
-								'is-danger': !entry.online,
-							}"
-							position="is-left"
-						>
-							<font-awesome-icon
-								:style="{
-									color: entry.online
-										? 'hsl(141, 53%, 53%)'
-										: 'hsl(348, 100%, 61%)',
-								}"
-								class="is-size-6 ml-3 ml-0-touch"
-								icon="circle"
-								fixed-width
-							/>
-						</b-tooltip>
-					</div>
-					<div class="is-pulled-right" key="pinned" v-if="entry.pinned">
-						<b-tooltip
-							label="This student is pinned to the top of the queue."
-							position="is-left"
-						>
-							<font-awesome-icon
-								class="is-size-2 is-size-6-touch"
-								icon="thumbtack"
-								fixed-width
-							/>
-						</b-tooltip>
-					</div>
-					<div class="is-pulled-right" key="helping" v-if="entry.isBeingHelped">
-						<b-tooltip
-							:label="`Currently being helped by ${beingHelpedBy}`"
-							position="is-left"
-						>
-							<font-awesome-icon
-								class="is-size-2 is-size-6-touch"
-								icon="chalkboard-teacher"
-								fixed-width
-							/>
-						</b-tooltip>
-					</div>
-					<div
-						class="is-pulled-right"
-						key="not-helped"
-						v-if="stack && !entry.helped"
-					>
-						<b-tooltip
-							label="This student wasn't able to be helped."
-							position="is-left"
-						>
-							<font-awesome-icon
-								icon="frown-open"
-								class="is-size-2 is-size-6-touch"
-								fixed-width
-							/>
-						</b-tooltip>
-					</div>
-				</transition-group>
-			</figure>
-		</article>
-	</div>
-</template>
-
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
-import { Moment } from 'moment-timezone';
-import linkifyStr from 'linkify-string';
-import OrderedQueue from '@/types/OrderedQueue';
-import { QueueEntry } from '@/types/QueueEntry';
-import ErrorDialog from '@/util/ErrorDialog';
-import EscapeHTML from '@/util/Sanitization';
-import * as PromptHandler from '@/util/PromptHandler';
-
-import { library } from '@fortawesome/fontawesome-svg-core';
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import moment from 'moment-timezone'
+import type { Moment } from 'moment-timezone'
+import linkifyStr from 'linkify-string'
 import {
-	faUser,
-	faAt,
-	faQuestion,
-	faLink,
-	faClock,
-	faCheck,
-	faSortNumericUp,
-	faSortNumericDown,
-	faTimes,
-	faThumbtack,
-	faEnvelope,
-	faHandsHelping,
-	faFrownOpen,
-	faMapMarker,
-	faCircle,
-	faChalkboardTeacher,
-	faUndo,
-} from '@fortawesome/free-solid-svg-icons';
+  User,
+  AtSign,
+  HelpCircle,
+  Link,
+  MapPin,
+  Clock,
+  ArrowUp,
+  ArrowDown,
+  X,
+  Pin,
+  Mail,
+  Handshake,
+  Frown,
+  Circle,
+  School,
+  Undo2,
+  Check,
+} from 'lucide-vue-next'
+import type { Queue, QueueEntry, RemovedQueueEntry } from '@/types'
+import { useUserStore } from '@/stores/user'
+import { useQueueStore } from '@/stores/queue'
+import { globalDialog } from '@/composables/useDialog'
+import ErrorDialog from '@/utils/ErrorDialog'
+import { escapeHTML } from '@/utils/sanitization'
+import * as PromptHandler from '@/utils/promptHandler'
 
-library.add(
-	faUser,
-	faAt,
-	faQuestion,
-	faLink,
-	faClock,
-	faCheck,
-	faSortNumericUp,
-	faSortNumericDown,
-	faTimes,
-	faThumbtack,
-	faEnvelope,
-	faHandsHelping,
-	faFrownOpen,
-	faMapMarker,
-	faCircle,
-	faChalkboardTeacher,
-	faUndo
-);
+const props = defineProps<{
+  entry: QueueEntry | RemovedQueueEntry
+  stack: boolean
+  queue: Queue
+  admin: boolean
+  time: Moment
+}>()
 
-@Component
-export default class QueueEntryDisplay extends Vue {
-	@Prop({ required: true }) entry!: QueueEntry;
-	@Prop({ required: true }) stack!: boolean;
-	@Prop({ required: true }) queue!: OrderedQueue;
-	@Prop({ required: true }) admin!: boolean;
-	@Prop({ required: true }) time!: Moment;
+const userStore = useUserStore()
+const queueStore = useQueueStore()
 
-	get anonymous() {
-		return !(
-			this.admin ||
-			(this.$root.$data.userInfo.email !== undefined &&
-				this.entry.email === this.$root.$data.userInfo.email)
-		);
-	}
+const removeRequestRunning = ref(false)
+const helpingRequestRunning = ref(false)
+const pinEntryRequestRunning = ref(false)
+const notHelpedRequestRunning = ref(false)
 
-	get name() {
-		return this.anonymous ? 'Anonymous Student' : this.entry.name;
-	}
+const anonymous = computed(() => {
+  return !(
+    props.admin ||
+    (userStore.userInfo?.email && props.entry.email === userStore.userInfo.email)
+  )
+})
 
-	get location() {
-		return linkifyStr(this.entry.location || '', {
-			defaultProtocol: 'https',
-		});
-	}
+const name = computed(() => {
+  return anonymous.value ? 'Anonymous Student' : props.entry.name
+})
 
-	get humanizedTimestamp() {
-		// HACK: fix time update lag issues in the beginning
-		// by saying the time is 5 seconds ahead of what it really is.
-		// Since we only display "a few seconds ago" this shouldn't have
-		// any noticeable impact.
-		return this.entry.humanizedTimestamp(this.time.clone().add(5, 'second'));
-	}
+const location = computed(() => {
+  return linkifyStr(props.entry.location || '', {
+    defaultProtocol: 'https',
+  })
+})
 
-	get promptResponses(): string[] {
-		return PromptHandler.descriptionToResponses(this.entry.description);
-	}
+// For stack entries, use removed_at; for queue entries, use id_timestamp
+// This matches the original: QueueEntry uses timestamp, RemovedQueueEntry uses removedAt
+const entryMoment = computed(() => {
+  if (props.stack && 'removed_at' in props.entry) {
+    return moment(props.entry.removed_at).local()
+  }
+  return moment(props.entry.id_timestamp).local()
+})
 
-	get hasCustomPrompts(): boolean {
-		return this.promptResponses.length > 0;
-	}
+const humanizedTimestamp = computed(() => {
+  // HACK: fix time update lag issues in the beginning
+  // by saying the time is 5 seconds ahead of what it really is.
+  // Since we only display "a few seconds ago" this shouldn't have
+  // any noticeable impact.
+  return entryMoment.value.from(props.time.clone().add(5, 'second'))
+})
 
-	removeRequestRunning = false;
-	removeEntry() {
-		this.queue.personallyRemovedEntries.add(this.entry.id);
-		this.removeRequestRunning = true;
-		fetch(
-			process.env.BASE_URL +
-				`api/queues/${this.queue.id}/entries/${this.entry.id}`,
-			{
-				method: 'DELETE',
-			}
-		).then((res) => {
-			this.removeRequestRunning = false;
-			if (res.status !== 204) {
-				return ErrorDialog(res);
-			}
-		});
-	}
+const tooltipTimestamp = computed(() => {
+  return entryMoment.value.format('YYYY-MM-DD h:mm:ss a')
+})
 
-	pinEntryRequestRunning = false;
-	pinEntry() {
-		this.pinEntryRequestRunning = true;
-		fetch(
-			process.env.BASE_URL +
-				`api/queues/${this.queue.id}/entries/${this.entry.id}/pin`,
-			{
-				method: 'POST',
-			}
-		).then((res) => {
-			this.pinEntryRequestRunning = false;
-			if (res.status !== 204) {
-				return ErrorDialog(res);
-			}
+const isOnline = computed(() => {
+  return props.entry.email ? queueStore.isUserOnline(props.entry.email) : false
+})
 
-			this.$buefy.toast.open({
-				duration: 5000,
-				message: `Pinned ${EscapeHTML(this.entry.email!)}!`,
-				type: 'is-success',
-			});
-		});
-	}
+const isBeingHelped = computed(() => {
+  return 'helping' in props.entry && !!props.entry.helping
+})
 
-	helpingRequestRunning = false;
-	setHelping(helping: boolean) {
-		this.helpingRequestRunning = true;
-		fetch(
-			process.env.BASE_URL +
-				`api/queues/${this.queue.id}/entries/${this.entry.id}/helping?helping=${helping}`,
-			{
-				method: 'PUT',
-			}
-		).then((res) => {
-			this.helpingRequestRunning = false;
-			if (res.status !== 204) {
-				return ErrorDialog(res);
-			}
-		});
-	}
+const beingHelpedBy = computed(() => {
+  return 'helping' in props.entry ? props.entry.helping?.trim() || '' : ''
+})
 
-	get beingHelpedBy() {
-		return EscapeHTML(this.entry.helping.trim());
-	}
+const config = computed(() => queueStore.config as Record<string, unknown> | null)
 
-	notHelpedRequestRunning = false;
-	setNotHelped() {
-		this.notHelpedRequestRunning = true;
-		fetch(
-			process.env.BASE_URL +
-				`api/queues/${this.queue.id}/entries/${this.entry.id}/helped`,
-			{
-				method: 'DELETE',
-			}
-		).then((res) => {
-			this.notHelpedRequestRunning = false;
-			if (res.status !== 204) {
-				return ErrorDialog(res);
-			}
-		});
-	}
+const promptResponses = computed(() => {
+  return PromptHandler.descriptionToResponses(props.entry.description)
+})
 
-	messageUser() {
-		this.$buefy.dialog.prompt({
-			message: `Send message to ${EscapeHTML(this.entry.email!)}:`,
-			inputAttrs: {
-				placeholder: 'Your meeting is empty, please come back!',
-			},
-			trapFocus: true,
-			onConfirm: (message) => {
-				fetch(process.env.BASE_URL + `api/queues/${this.queue.id}/messages`, {
-					method: 'POST',
-					body: JSON.stringify({
-						receiver: this.entry.email,
-						content: message,
-					}),
-				}).then((res) => {
-					if (res.status !== 201) {
-						return ErrorDialog(res);
-					}
+const hasCustomPrompts = computed(() => {
+  return promptResponses.value.length > 0
+})
 
-					this.$buefy.toast.open({
-						duration: 5000,
-						message: `Sent message to ${EscapeHTML(this.entry.email!)}`,
-						type: 'is-success',
-					});
-				});
-			},
-		});
-	}
+async function removeEntry() {
+  removeRequestRunning.value = true
+  try {
+    const res = await fetch(
+      `/api/queues/${props.queue.id}/entries/${props.entry.id}`,
+      { method: 'DELETE' }
+    )
+    if (res.status !== 204) {
+      return ErrorDialog(res)
+    }
+  } finally {
+    removeRequestRunning.value = false
+  }
+}
+
+async function pinEntry() {
+  pinEntryRequestRunning.value = true
+  try {
+    const res = await fetch(
+      `/api/queues/${props.queue.id}/entries/${props.entry.id}/pin`,
+      { method: 'POST' }
+    )
+    if (res.status !== 204) {
+      return ErrorDialog(res)
+    }
+    globalDialog.toast(`Pinned ${escapeHTML(props.entry.email || '')}!`, 'success')
+  } finally {
+    pinEntryRequestRunning.value = false
+  }
+}
+
+async function setHelping(helping: boolean) {
+  helpingRequestRunning.value = true
+  try {
+    const res = await fetch(
+      `/api/queues/${props.queue.id}/entries/${props.entry.id}/helping?helping=${helping}`,
+      { method: 'PUT' }
+    )
+    if (res.status !== 204) {
+      return ErrorDialog(res)
+    }
+  } finally {
+    helpingRequestRunning.value = false
+  }
+}
+
+async function setNotHelped() {
+  notHelpedRequestRunning.value = true
+  try {
+    const res = await fetch(
+      `/api/queues/${props.queue.id}/entries/${props.entry.id}/helped`,
+      { method: 'DELETE' }
+    )
+    if (res.status !== 204) {
+      return ErrorDialog(res)
+    }
+  } finally {
+    notHelpedRequestRunning.value = false
+  }
+}
+
+async function messageUser() {
+  globalDialog.prompt({
+    title: 'Send Message',
+    message: `Send message to ${escapeHTML(props.entry.email || '')}:`,
+    confirmText: 'Send',
+    onConfirm: async (message) => {
+      const res = await fetch(`/api/queues/${props.queue.id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          receiver: props.entry.email,
+          content: message,
+        }),
+      })
+      if (res.status !== 201) {
+        return ErrorDialog(res)
+      }
+      globalDialog.toast(`Sent message to ${escapeHTML(props.entry.email || '')}`, 'success')
+    },
+  })
 }
 </script>
 
-<style scoped>
-.icon-row {
-	margin-bottom: 0px;
-}
+<template>
+  <div class="card bg-base-100 shadow">
+    <div class="card-body p-4">
+      <div class="flex justify-between">
+        <div class="flex-1 space-y-1">
+          <!-- Name -->
+          <div class="flex items-center gap-2">
+            <User class="w-4 h-4 text-base-content/60 shrink-0" />
+            <strong class="break-words">{{ name }}</strong>
+          </div>
 
-.level-left {
-	flex-shrink: 1;
-	align-items: flex-start;
-}
+          <template v-if="!anonymous">
+            <!-- Email -->
+            <div class="flex items-center gap-2">
+              <AtSign class="w-4 h-4 text-base-content/60 shrink-0" />
+              <span class="break-all">{{ entry.email }}</span>
+            </div>
 
-.stay-in-container {
-	flex-shrink: 1;
-	overflow-wrap: break-word;
-	word-break: break-word;
-	hyphens: auto;
-	flex-direction: column;
-}
+            <!-- Description (custom prompts) -->
+            <template v-if="hasCustomPrompts">
+              <div v-for="(response, i) in promptResponses" :key="i" class="flex items-start gap-2">
+                <HelpCircle class="w-4 h-4 text-base-content/60 shrink-0 mt-0.5" />
+                <span class="break-words">{{ response }}</span>
+              </div>
+            </template>
+            <!-- Description (plain text) -->
+            <div v-else class="flex items-start gap-2">
+              <HelpCircle class="w-4 h-4 text-base-content/60 shrink-0 mt-0.5" />
+              <span class="break-words">{{ entry.description }}</span>
+            </div>
 
-.link-in-container {
-	flex-shrink: 1;
-	word-break: break-all;
-	overflow-wrap: anywhere;
-	hyphens: auto;
-	display: inline-block;
-}
+            <!-- Location -->
+            <div v-if="entry.location && entry.location !== '(disabled)'" class="flex items-start gap-2">
+              <component
+                :is="config?.virtual ? Link : MapPin"
+                class="w-4 h-4 text-base-content/60 shrink-0 mt-0.5"
+              />
+              <span class="break-all" v-html="location"></span>
+            </div>
+          </template>
 
-.media {
-	position: relative;
-}
+          <!-- Timestamp -->
+          <div class="flex items-center gap-2">
+            <Clock class="w-4 h-4 text-base-content/60 shrink-0" />
+            <span class="tooltip" :data-tip="tooltipTimestamp">
+              {{ humanizedTimestamp }}
+            </span>
+          </div>
 
-.media-right {
-	position: absolute;
-	right: 0.1rem;
-}
+          <!-- Priority -->
+          <div v-if="entry.priority !== 0" class="flex items-center gap-2">
+            <component
+              :is="entry.priority > 0 ? ArrowUp : ArrowDown"
+              class="w-4 h-4 text-base-content/60 shrink-0"
+            />
+            <span>Priority: {{ (entry.priority > 0 ? '+' : '') + entry.priority }}</span>
+          </div>
 
-@media screen and (max-width: 768px) {
-	.ml-0-touch {
-		margin-left: 0 !important;
-	}
-}
-</style>
+          <!-- Removed by (stack only) -->
+          <div v-if="stack && 'removed_by' in entry" class="flex items-center gap-2">
+            <X class="w-4 h-4 text-base-content/60 shrink-0" />
+            <span>{{ entry.removed_by }}</span>
+          </div>
+        </div>
+
+        <!-- Status indicators -->
+        <div class="flex flex-col items-end gap-2">
+          <!-- Online status (admin only) -->
+          <div v-if="admin" class="tooltip tooltip-left" :data-tip="`Student is ${isOnline ? 'online' : 'offline'}`">
+            <Circle
+              class="w-4 h-4"
+              :class="isOnline ? 'fill-success text-success' : 'fill-error text-error'"
+            />
+          </div>
+
+          <!-- Pinned indicator -->
+          <div v-if="entry.pinned" class="tooltip tooltip-left" data-tip="Pinned to top">
+            <Pin class="w-10 h-10" />
+          </div>
+
+          <!-- Being helped indicator -->
+          <div v-if="isBeingHelped" class="tooltip tooltip-left" :data-tip="`Being helped by ${beingHelpedBy}`">
+            <School class="w-10 h-10" />
+          </div>
+
+          <!-- Not helped indicator (stack only) -->
+          <div v-if="stack && !entry.helped" class="tooltip tooltip-left" data-tip="Student wasn't helped">
+            <Frown class="w-10 h-10" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div v-if="!anonymous" class="flex flex-wrap gap-2 mt-4">
+        <template v-if="!stack">
+          <!-- Help button (admin, not being helped) -->
+          <button
+            v-if="admin && !isBeingHelped"
+            class="btn btn-success btn-sm gap-2"
+            :class="{ 'loading': helpingRequestRunning }"
+            @click="setHelping(true)"
+          >
+            <Handshake class="w-4 h-4" />
+            Help
+          </button>
+
+          <!-- Done/Undo buttons (admin, being helped) -->
+          <template v-else-if="admin && isBeingHelped">
+            <button
+              class="btn btn-success btn-sm gap-2"
+              :class="{ 'loading': removeRequestRunning }"
+              @click="removeEntry"
+            >
+              <Check class="w-4 h-4" />
+              Done
+            </button>
+            <button
+              class="btn btn-error btn-sm gap-2"
+              :class="{ 'loading': helpingRequestRunning }"
+              @click="setHelping(false)"
+            >
+              <Undo2 class="w-4 h-4" />
+              Undo
+            </button>
+          </template>
+
+          <!-- Cancel button (student, own entry, not being helped) -->
+          <button
+            v-else-if="!admin && !isBeingHelped"
+            class="btn btn-error btn-sm gap-2"
+            :class="{ 'loading': removeRequestRunning }"
+            @click="removeEntry"
+          >
+            <X class="w-4 h-4" />
+            Cancel
+          </button>
+        </template>
+
+        <!-- Pin button (admin, not pinned) -->
+        <button
+          v-if="admin && !entry.pinned"
+          class="btn btn-primary btn-sm gap-2"
+          :class="{ 'loading': pinEntryRequestRunning }"
+          @click="pinEntry"
+        >
+          <Pin class="w-4 h-4" />
+          Pin
+        </button>
+
+        <!-- Not helped button (stack, was helped) -->
+        <button
+          v-if="admin && stack && entry.helped"
+          class="btn btn-error btn-sm gap-2"
+          :class="{ 'loading': notHelpedRequestRunning }"
+          @click="setNotHelped"
+        >
+          <Frown class="w-4 h-4" />
+          Not helped
+        </button>
+
+        <!-- Message button (admin) -->
+        <button
+          v-if="admin"
+          class="btn btn-warning btn-sm gap-2"
+          :disabled="!isOnline"
+          @click="messageUser"
+        >
+          <Mail class="w-4 h-4" />
+          Message
+        </button>
+      </div>
+    </div>
+  </div>
+</template>

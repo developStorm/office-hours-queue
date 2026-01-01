@@ -1,91 +1,46 @@
-import moment, { Moment } from 'moment';
-
-export class QueueEntry {
-	public readonly id!: string;
-	public readonly timestamp!: Moment;
-	public name: string | undefined;
-	public email: string | undefined;
-	public description: string | undefined;
-	public location: string | undefined;
-	public priority!: number;
-	public pinned!: boolean;
-	public helping!: string;
-	public helped!: boolean;
-	public online!: boolean;
-
-	constructor(data: { [index: string]: any }) {
-		this.id = data['id'];
-		this.timestamp = moment(data['id_timestamp']).local();
-		this.name = data['name'];
-		this.email = data['email'];
-		this.description = data['description'];
-		this.location = data['location'];
-		this.priority = data['priority'] || 0;
-		this.pinned = data['pinned'] || false;
-		this.helping = data['helping'] || '';
-		this.helped = data['helped'] || false;
-		this.online = data['online'] || false;
-	}
-
-	public update(data: { [index: string]: any }) {
-		this.name = data['name'] || this.name;
-		this.email = data['email'] || this.email;
-		this.description = data['description'] || this.description;
-		this.location = data['location'] || this.location;
-		this.priority = data['priority'] || this.priority;
-		this.pinned = data['pinned'] || this.pinned;
-		this.helping = data['helping'];
-		this.helped = data['helped'] || this.helped;
-		this.online = data['online'] || this.online;
-	}
-
-	// Get the humanized timestamp in relation to time.
-	// We pass in a parameter here instead of using moment()
-	// to overcome reactivity issues between Vue and moment.
-	public humanizedTimestamp(time: Moment): string {
-		return this.timestamp.from(time);
-	}
-
-	get tooltipTimestamp(): string {
-		return this.timestamp.format('YYYY-MM-DD h:mm:ss a');
-	}
-
-	get isBeingHelped(): boolean {
-		return this.helping !== '';
-	}
+export interface QueueEntry {
+  id: string
+  id_timestamp: string
+  created_at?: string
+  name?: string
+  email?: string
+  description?: string
+  location?: string
+  priority: number
+  pinned: boolean
+  helping: string
+  helped: boolean
+  online: boolean
 }
 
-export class RemovedQueueEntry extends QueueEntry {
-	public readonly removedAt!: Moment;
-	public readonly removedBy!: string;
+export interface RemovedQueueEntry extends QueueEntry {
+  removed_at: string
+  removed_by: string
+}
 
-	constructor(data: { [index: string]: any }) {
-		super(data);
-		this.removedAt = moment(data['removed_at']).local();
-		this.removedBy = data['removed_by'];
-	}
+// Helper functions for queue entries
+export function isBeingHelped(entry: QueueEntry): boolean {
+  return entry.helping !== ''
+}
 
-	humanizedTimestamp(time: Moment): string {
-		return this.removedAt.from(time);
-	}
+export function humanizedTimestamp(timestamp: string, now: Date): string {
+  const then = new Date(timestamp)
+  const diffMs = now.getTime() - then.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
 
-	get tooltipTimestamp() {
-		return this.removedAt.format('YYYY-MM-DD h:mm:ss a');
-	}
+  if (diffMins < 1) return 'just now'
+  if (diffMins === 1) return '1 minute ago'
+  if (diffMins < 60) return `${diffMins} minutes ago`
 
-	static fromEntry(
-		entry: QueueEntry,
-		removedAt: Moment,
-		removedBy: string
-	): RemovedQueueEntry {
-		// This isn't pretty with having to re-parse the timestamp,
-		// but it works!
-		return new RemovedQueueEntry({
-			...entry,
-			pinned: false,
-			id_timestamp: entry.timestamp.format(),
-			removed_at: removedAt,
-			removed_by: removedBy,
-		});
-	}
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours === 1) return '1 hour ago'
+  if (diffHours < 24) return `${diffHours} hours ago`
+
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays === 1) return '1 day ago'
+  return `${diffDays} days ago`
+}
+
+export function formatTimestamp(timestamp: string): string {
+  return new Date(timestamp).toLocaleString()
 }

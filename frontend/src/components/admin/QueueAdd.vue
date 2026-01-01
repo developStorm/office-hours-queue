@@ -1,52 +1,80 @@
-<template>
-	<div class="modal-card" style="width: auto">
-		<header class="modal-card-head">
-			<p class="modal-card-title">Add Queue</p>
-			<button type="button" class="delete" @click="$emit('close')" />
-		</header>
-		<section class="modal-card-body">
-			<b-field label="Name">
-				<b-input v-model="name" />
-			</b-field>
-			<b-field label="Location">
-				<b-input v-model="location" />
-			</b-field>
-			<b-field label="Type (cannot be changed later!)">
-				<b-select v-model="type" required>
-					<option>ordered</option>
-					<option>appointments</option>
-				</b-select>
-			</b-field>
-		</section>
-		<footer class="modal-card-foot">
-			<button class="button" type="button" @click="$emit('close')">
-				Close
-			</button>
-			<button class="button is-success" type="button" @click="saveQueue">
-				Save
-			</button>
-		</footer>
-	</div>
-</template>
+<script setup lang="ts">
+import { ref } from 'vue'
+import { X } from 'lucide-vue-next'
+import { globalDialog } from '@/composables/useDialog'
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+const emit = defineEmits<{
+  close: []
+  saved: [name: string, location: string, type: string]
+}>()
 
-@Component({})
-export default class QueueAdd extends Vue {
-	name = '';
-	location = '';
-	type = '';
+const name = ref('')
+const location = ref('')
+const type = ref('')
 
-	saveQueue() {
-		if (this.type === '') {
-			this.$buefy.dialog.alert({
-				message: 'Please select a queue type.',
-				type: 'is-danger',
-			});
-			return;
-		}
-		this.$emit('saved', this.name, this.location, this.type);
-	}
+function saveQueue() {
+  if (type.value === '') {
+    globalDialog.alert({
+      title: 'Error',
+      message: 'Please select a queue type.',
+      type: 'danger',
+    })
+    return
+  }
+  emit('saved', name.value, location.value, type.value)
 }
 </script>
+
+<template>
+  <div class="modal modal-open">
+    <div class="modal-box">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg">Add Queue</h3>
+        <button class="btn btn-ghost btn-sm btn-circle" @click="emit('close')">
+          <X class="w-4 h-4" />
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Name</span>
+          </label>
+          <input
+            v-model="name"
+            type="text"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Location</span>
+          </label>
+          <input
+            v-model="location"
+            type="text"
+            class="input input-bordered w-full"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Type (cannot be changed later!)</span>
+          </label>
+          <select v-model="type" class="select select-bordered w-full">
+            <option value="" disabled>Select type...</option>
+            <option value="ordered">ordered</option>
+            <option value="appointments">appointments</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-action">
+        <button class="btn" @click="emit('close')">Close</button>
+        <button class="btn btn-success" @click="saveQueue">Save</button>
+      </div>
+    </div>
+    <div class="modal-backdrop" @click="emit('close')"></div>
+  </div>
+</template>
