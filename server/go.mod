@@ -10,12 +10,12 @@ require (
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/cskr/pubsub v1.0.2
 	github.com/dchest/uniuri v1.2.0
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-chi/httprate v0.15.0
 	github.com/gorilla/sessions v1.4.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.11.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/segmentio/ksuid v1.0.4
 	go.uber.org/zap v1.27.1
