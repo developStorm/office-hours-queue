@@ -75,13 +75,13 @@ func Load() error {
 	if err != nil {
 		return fmt.Errorf("failed to load DB password file: %w", err)
 	}
-	AppConfig.DBPassword = string(dbPassword)
+	AppConfig.DBPassword = strings.TrimSpace(string(dbPassword))
 
 	oauthClientSecret, err := os.ReadFile(AppConfig.OAuth2ClientSecretFile)
 	if err != nil {
 		return fmt.Errorf("failed to load OAuth2 client secret file: %w", err)
 	}
-	AppConfig.OAuth2ClientSecret = string(oauthClientSecret)
+	AppConfig.OAuth2ClientSecret = strings.TrimSpace(string(oauthClientSecret))
 
 	sessionsKey, err := os.ReadFile(AppConfig.SessionsKeyFile)
 	if err != nil {
@@ -93,7 +93,7 @@ func Load() error {
 	if err != nil {
 		return fmt.Errorf("failed to load metrics password file: %w", err)
 	}
-	AppConfig.MetricsPassword = string(metricsPassword)
+	AppConfig.MetricsPassword = strings.TrimSpace(string(metricsPassword))
 
 	return nil
 }
